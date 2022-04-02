@@ -190,7 +190,7 @@ const {observe} = (() => {
                 if (constant) throw new TypeError(`${property}:${type} is a constant`);
                 const newtype = typeof (newValue),
                     typetype = typeof (type);
-                if (type === "any" || newtype === type || (typetype === "function" && newValue && newtype === "object" && newValue instanceof type)) {
+                if (newValue==null || type === "any" || newtype === type || (typetype === "function" && newValue && newtype === "object" && newValue instanceof type)) {
                     if (value !== newValue) {
                         event.oldValue = value;
                         target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
@@ -276,9 +276,10 @@ const {observe} = (() => {
     const resolveNode = (node, component) => {
         if (node.template) {
             try {
-                node.nodeValue = Function("context", "with(context) { return `" + node.template + "` }")(component.varsProxy);
+                const value = Function("context", "with(context) { return `" + node.template + "` }")(component.varsProxy);
+                node.nodeValue = value==="null" || value==="undefined" ? "" : value;
             } catch (e) {
-                if (!e.message.includes("defined")) throw e;
+                if (!e.message.includes("defined")) throw e; // actually looking for undefined or not defined
             }
         }
         return node.nodeValue;
@@ -608,11 +609,17 @@ const {observe} = (() => {
                             }
                             if (exported) {
                                 variable.exported = true;
+                                // in case the export goes up to at iframe
+                                setComponentAttribute(this,key,variable.value);
                                 addEventListener("change",({variableName,value}) => {
                                     // Array.isArray will not work here, Proxies mess up JSON.stringify for Arrays
                                     //value = value && typeof (value) === "object" ? (value instanceof Array ? JSON.stringify([...value]) : JSON.stringify(value)) : value+"";
-                                    value = typeof(value)==="string" ? value : JSON.stringify(value);
-                                    this.setAttribute(variableName,value);
+                                    value = typeof(value)==="string" || !value ? value : JSON.stringify(value);
+                                    if(value==null) {
+                                        removeComponentAttribute(this,variableName);
+                                    } else {
+                                        setComponentAttribute(this,variableName,value);
+                                    }
                                 })
                             }
                         });
@@ -624,13 +631,17 @@ const {observe} = (() => {
                             } else {
                                 // Array.isArray will not work here, Proxies mess up JSON.stringify for Arrays
                                 //value = value && typeof (value) === "object" ? (value instanceof Array ? JSON.stringify([...value]) : JSON.stringify(value)) : value+"";
-                                value = typeof(value)==="string" ? value : JSON.stringify(value);
+                                value = typeof(value)==="string" || value==null ? value : JSON.stringify(value);
                                 const oldvalue = input.getAttribute("value")||"";
                                 if(oldvalue!==value) {
-                                    input.setAttribute("value",value);
+                                    if(value==null) {
+                                        input.removeAttribute("value");
+                                    } else {
+                                        input.setAttribute("value",value);
+                                    }
                                     try {
-                                        input.setSelectionRange(0, Math.max(oldvalue.length,value.length)); // shadowDom sometimes fails to rerender unless this is done;
-                                        input.setRangeText(value,0,  Math.max(oldvalue.length,value.length));
+                                        input.setSelectionRange(0, Math.max(oldvalue.length,value ? value.length : 0)); // shadowDom sometimes fails to rerender unless this is done;
+                                        input.setRangeText(value||"",0,  Math.max(oldvalue.length,value ? value.length : 0));
                                     } catch(e) {
 
                                     }
@@ -666,7 +677,14 @@ const {observe} = (() => {
         }
     }
     const createComponent = (name, node, {observer,bindForms,importAnchors}={}) => {
-        if (!customElements.get(name)) customElements.define(name, createClass(node, {observer,bindForms,importAnchors}));
+        let ctor = customElements.get(name);
+        if(ctor) {
+            console.warn(new Error(`${name} is already a CustomElement. Not redefining`));
+            return ctor;
+        }
+        ctor = createClass(node, {observer,bindForms,importAnchors});
+        customElements.define(name, ctor);
+        return ctor;
     }
     Object.defineProperty(Lightview,"createComponent",{writable:true,configurable:true,value:createComponent})
     const importLink = async (link, observer) => {
@@ -693,22 +711,124 @@ const {observe} = (() => {
         }
     }
 
-    const bodyAsComponent = (as, {unhide,importAnchors,bindForms}={}) => {
+    const bodyAsComponent = ({as="x-body",unhide,importAnchors,bindForms}={}) => {
         const parent = document.body.parentElement;
         createComponent(as, document.body,{importAnchors,bindForms});
         const component = document.createElement(as);
         parent.replaceChild(component, document.body);
+        Object.defineProperty(document,"body",{enumerable:true,configurable:true,get() { return component; }});
         if (unhide) component.removeAttribute("hidden");
     }
+    Lightview.bodyAsComponent = bodyAsComponent;
+    const postMessage = (data,target=window.parent) => {
+        if(postMessage.enabled) {
+            if(target instanceof HTMLIFrameElement) {
+                data = {...data,href:window.location.href};
+                target.contentWindow.postMessage(JSON.stringify(data),"*");
+            } else {
+                data = {...data,iframeId:document.lightviewId,href:window.location.href};
+                target.postMessage(JSON.stringify(data),"*");
+            }
+        }
+    }
+    const setComponentAttribute = (node,name,value) => {
+        if(node.getAttribute(name)!==value) node.setAttribute(name,value);
+        postMessage({type:"setAttribute",argsList:[name,value]});
+    }
+    const removeComponentAttribute = (node,name,value) => {
+        node.removeAttribute(name);
+        postMessage({type:"removeAttribute",argsList:[name]});
+    }
+    const getNodePath = (node,path=[]) => {
+        path.unshift(node);
+        if(node.parentNode && node.parentNode!==node.parentNode) getNodePath(node.parentNode,path);
+        return path;
+    }
+    const onresize = (node, callback) => {
+        const resizeObserver = new ResizeObserver(() => callback() );
+        resizeObserver.observe(node);
+    };
 
     const url = new URL(document.currentScript.getAttribute("src"), window.location.href);
-    document.addEventListener("DOMContentLoaded", async () => {
-        if (url.searchParams.has("importLinks")) await importLinks();
-        const importAnchors = !!document.querySelector('meta[name="l-importAnchors"]'),
-            bindForms = !!document.querySelector('meta[name="l-bindForms"]'),
-            unhide = !!document.querySelector('meta[name="l-unhide"]');
-        if (url.searchParams.has("as")) bodyAsComponent(url.searchParams.get("as"), {unhide,importAnchors,bindForms});
-    });
+    let domContentLoadedEvent;
+    window.addEventListener("DOMContentLoaded",(event) => domContentLoadedEvent = event);
+    const loader = async (whenFramed) => {
+            if (!!document.querySelector('meta[name="l-importLinks"]')) await importLinks();
+            const importAnchors = !!document.querySelector('meta[name="l-importAnchors"]'),
+                bindForms = !!document.querySelector('meta[name="l-bindForms"]'),
+                unhide = !!document.querySelector('meta[name="l-unhide"]'),
+                isolated = !!document.querySelector('meta[name="l-isolate"]'),
+                enableFrames = !!document.querySelector('meta[name="l-enableFrames"]');
+            if(whenFramed) {
+                whenFramed({unhide,importAnchors,bindForms,isolated,enableFrames});
+                if(!isolated) {
+                    postMessage.enabled = true;
+                    window.addEventListener("message",({data}) => {
+                        data = JSON.parse(data);
+                        if(data.type==="framed") {
+                            const resize = () => {
+                                const {width,height} = document.body.getBoundingClientRect();
+                                postMessage({type:"setAttribute",argsList:["width",width]})
+                                postMessage({type:"setAttribute",argsList:["height",height+20]});
+                            }
+                            resize();
+                            onresize(document.body,() => {
+                                resize();
+                            })
+                        }
+                        const event = new CustomEvent(data.type,{detail:data});
+
+                    });
+                   /* window.addEventListener("resize",() => {
+                        const {width,height} = document.body.getBoundingClientRect();
+                        postMessage({type:"setAttribute",argsList:["width",width]})
+                        postMessage({type:"setAttribute",argsList:["height",height]})
+                    })*/
+                    const url = new URL(window.location.href);
+                    document.lightviewId = url.searchParams.get("id");
+                    postMessage({type:"DOMContentLoaded"})
+                }
+            } else if (url.searchParams.has("as")) {
+                bodyAsComponent({as:url.searchParams.get("as"),unhide,importAnchors,bindForms});
+            }
+            if(enableFrames) {
+                postMessage.enabled = true;
+                window.addEventListener("message",(message) => {
+                    const {type,iframeId,argsList,href} = JSON.parse(message.data),
+                        iframe = document.getElementById(iframeId);
+                    if(iframe) {
+                        if(type==="DOMContentLoaded") {
+                            postMessage({type:"framed",href:window.location.href},iframe);
+                            Object.defineProperty(domContentLoadedEvent,"currentTarget",{enumerable:false,configurable:true,value:iframe});
+                            domContentLoadedEvent.href = href;
+                            domContentLoadedEvent.srcElement = iframe;
+                            domContentLoadedEvent.bubbles = false;
+                            domContentLoadedEvent.path = getNodePath(iframe);
+                            Object.defineProperty(domContentLoadedEvent,"timeStamp",{enumerable:false,configurable:true,value:performance.now()})
+                            iframe.dispatchEvent(domContentLoadedEvent);
+                            return;
+                        }
+                        if(type==="setAttribute") {
+                            const [name,value] = [...argsList];
+                            if(iframe.getAttribute(name)!==value+"") iframe.setAttribute(name,value);
+                            return;
+                        }
+                        if(type==="removeAttribute") {
+                            iframe.removeAttribute(...argsList);
+                            return;
+                        }
+                    }
+                    console.warn("iframe posted a message without providing an id",message);
+                });
+            }
+        }
+    const whenFramed = (f,{isolated}={}) => {
+        document.addEventListener("DOMContentLoaded",(event) => loader(f));
+    }
+    Object.defineProperty(Lightview,"whenFramed",{configurable:true,writable:true,value:whenFramed});
+    if(window.location===window.parent.location || !(window.parent instanceof Window)) { // CodePen mucks with window.parent
+        document.addEventListener("DOMContentLoaded",() => loader())
+    }
 
     return {observe}
 })();

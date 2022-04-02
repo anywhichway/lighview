@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Form</title>
+    <meta name="l-bindForms">
+    <script src="./lightview.js?as=x-body"></script>
+    <script>Lightview.whenFramed(({as,unhide,importAnchors,bindForms,isolated,enableFrames}) => {
+        Lightview.bodyAsComponent({as,unhide,importAnchors,bindForms,isolated,enableFrames});
+    })</script>
+</head>
+
+<body style="height:fit-content;width:fit-content;display:flex;flex-direction:column;max-height:100%;overflow:auto;">
+<p>
+    <button l-on:click="run">Run</button> <button l-on:click="reset">Reset</button> <button l-on:click="setNull">Set Null</button>
+</p>
+<form>
+    <input name="name" type="text" value="Joe"><br>
+    <input name="age" type="number" value="20"><br>
+</form>
+<div id="console"></div>
+<script type="lightview/module">
+    self.variables({name:string,age:number},{exported});
+    self.run = () => {
+      name = "Bill";
+      age = 30;
+      action("run");
+    };
+    self.reset = () => {
+      name = "Joe";
+      age = 20;
+      const console = self.getElementById("console");
+      while(console.lastElementChild) console.lastElementChild.remove();
+    };
+    self.setNull = () => {
+      name = null;
+      age = undefined;
+       action("setNull");
+    };
+    const action = (name) => {
+        const div = document.createElement("div");
+        div.innerText = name;
+        self.getElementById("console").appendChild(div);
+    }
+  </script>
+</body>
+
+</html>
