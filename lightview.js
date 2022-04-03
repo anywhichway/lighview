@@ -57,12 +57,12 @@ const {observe} = (() => {
             }
             CURRENTOBSERVER = null;
         }
-
         observer.cancel = () => observer.cancelled = true;
         observer();
         return observer;
     }
     const coerce = (value, toType) => {
+        if(value+""==="null" || value+""==="undefined") return value;
         const type = typeof (value);
         if (type === toType) return value;
         if (toType === "number") return parseFloat(value + "");
@@ -309,7 +309,7 @@ const {observe} = (() => {
     }
     const _bindForms = (node, component) => {
         [...node.querySelectorAll("input")].forEach((input) => {
-           bindInput(input,component);
+            bindInput(input,component);
         })
     }
     const bindInput = (input,component) => {
@@ -394,7 +394,7 @@ const {observe} = (() => {
                 };
                 this.defaultAttributes = domElementNode.tagName==="TEMPLATE" ? domElementNode.attributes : dom.attributes;
                 this.varsProxy = createVarsProxy(this.vars, this, CustomElement);
-               ["getElementById", "querySelector", "querySelectorAll"]
+                ["getElementById", "querySelector", "querySelectorAll"]
                     .forEach((fname) => {
                         Object.defineProperty(this, fname, {
                             configurable: true,
@@ -451,91 +451,91 @@ const {observe} = (() => {
                     ctx.appendChild(currentScript);
                 }
                 Promise.all(promises).then(() => {
-                        const inputs = [...ctx.shadowRoot.querySelectorAll("input[l-bind]")];
-                        inputs.forEach((input) => {
-                            bindInput(input,ctx);
-                        })
-                        const nodes = getNodes(ctx);
-                        nodes.forEach((node) => {
-                            if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
-                                render(!!node.template, () => resolveNode(node, this))
-                            } else if (node.nodeType === Node.ELEMENT_NODE) {
-                                [...node.attributes].forEach((attr) => {
-                                    const {name, value} = attr,
-                                        [type, ...params] = name.split(":");
-                                    if (["checked","selected"].includes(type)) {
-                                        render(!!attr.template, () => {
-                                            const value = resolveNode(attr, this);
-                                            if (value === "true") node.setAttribute(name, "");
-                                            else node.removeAttribute(name);
-                                        })
-                                    } else if(type==="") {
-                                        render(!!attr.template, () => {
-                                            const value = resolveNode(attr, this);
-                                            if(params[0]) {
-                                                if(value==="true") node.setAttribute(params[0], "");
-                                                else node.removeAttribute(params[0]);
-                                            } else {
-                                                if(value!=="true") node.removeAttribute(name);
-                                            }
-                                        })
-                                    } else if (["checked","selected"].includes(name)) {
-                                        render(!!attr.template, () => {
-                                            const value = resolveNode(attr, this);
-                                            if (value === "true") node.setAttribute(name, "");
-                                            else node.removeAttribute(name);
-                                        })
-                                    } else if (type === "l-on") {
-                                        let listener;
-                                        render(!!attr.template, () => {
-                                            const value = resolveNode(attr, this);
-                                            if (listener) node.removeEventListener(params[0], listener);
-                                            listener = this[value] || window[value] || Function(value);
-                                            node.addEventListener(params[0], listener);
-                                        })
-                                    } else if (type === "l-if") {
-                                        render(!!attr.template, () => {
-                                            const value = resolveNode(attr, this);
-                                            node.style.setProperty("display", value === "true" ? "revert" : "none");
-                                        })
-                                    } else if (type === "l-for") {
-                                        node.template ||= node.innerHTML;
-                                        render(!!attr.template, () => {
-                                            const [what = "each", vname = "element", index = "index", array = "array", after = false] = params,
-                                                value = resolveNode(attr, this),
-                                                coerced = coerce(value, what === "each" ? Array : "object"),
-                                                target = what === "each" ? coerced : Object[what](coerced),
-                                                html = target.reduce((html, item, i, target) => {
-                                                    return html += Function("context", "with(context) { return `" + node.template + "` }")({
-                                                        [vname]: item,
-                                                        [index]: i,
-                                                        [array]: target
-                                                    })
-                                                }, ""),
-                                                parsed = parser.parseFromString(html, "text/html");
-                                            if (!window.lightviewDebug) {
-                                                if (after) {
-                                                    node.style.setProperty("display", "none")
-                                                } else {
-                                                    while (node.lastElementChild) node.lastElementChild.remove();
-                                                }
-                                            }
-                                            while (parsed.body.firstChild) {
-                                                if (after) node.parentElement.insertBefore(parsed.body.firstChild, node);
-                                                else node.appendChild(parsed.body.firstChild);
-                                            }
-                                        })
-                                    } else if (attr.template) {
-                                        render(!!attr.template, () => resolveNode(attr, this));
-                                    }
-                                })
-                            }
-                        })
-                        shadow.normalize();
-                        observer.observe(ctx, {attributeOldValue: true});
-                        if (ctx.hasOwnProperty("connectedCallback")) ctx.connectedCallback();
+                    const inputs = [...ctx.shadowRoot.querySelectorAll("input[l-bind]")];
+                    inputs.forEach((input) => {
+                        bindInput(input,ctx);
                     })
-                }
+                    const nodes = getNodes(ctx);
+                    nodes.forEach((node) => {
+                        if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
+                            render(!!node.template, () => resolveNode(node, this))
+                        } else if (node.nodeType === Node.ELEMENT_NODE) {
+                            [...node.attributes].forEach((attr) => {
+                                const {name, value} = attr,
+                                    [type, ...params] = name.split(":");
+                                if (["checked","selected"].includes(type)) {
+                                    render(!!attr.template, () => {
+                                        const value = resolveNode(attr, this);
+                                        if (value === "true") node.setAttribute(name, "");
+                                        else node.removeAttribute(name);
+                                    })
+                                } else if(type==="") {
+                                    render(!!attr.template, () => {
+                                        const value = resolveNode(attr, this);
+                                        if(params[0]) {
+                                            if(value==="true") node.setAttribute(params[0], "");
+                                            else node.removeAttribute(params[0]);
+                                        } else {
+                                            if(value!=="true") node.removeAttribute(name);
+                                        }
+                                    })
+                                } else if (["checked","selected"].includes(name)) {
+                                    render(!!attr.template, () => {
+                                        const value = resolveNode(attr, this);
+                                        if (value === "true") node.setAttribute(name, "");
+                                        else node.removeAttribute(name);
+                                    })
+                                } else if (type === "l-on") {
+                                    let listener;
+                                    render(!!attr.template, () => {
+                                        const value = resolveNode(attr, this);
+                                        if (listener) node.removeEventListener(params[0], listener);
+                                        listener = this[value] || window[value] || Function(value);
+                                        node.addEventListener(params[0], listener);
+                                    })
+                                } else if (type === "l-if") {
+                                    render(!!attr.template, () => {
+                                        const value = resolveNode(attr, this);
+                                        node.style.setProperty("display", value === "true" ? "revert" : "none");
+                                    })
+                                } else if (type === "l-for") {
+                                    node.template ||= node.innerHTML;
+                                    render(!!attr.template, () => {
+                                        const [what = "each", vname = "element", index = "index", array = "array", after = false] = params,
+                                            value = resolveNode(attr, this),
+                                            coerced = coerce(value, what === "each" ? Array : "object"),
+                                            target = what === "each" ? coerced : Object[what](coerced),
+                                            html = target.reduce((html, item, i, target) => {
+                                                return html += Function("context", "with(context) { return `" + node.template + "` }")({
+                                                    [vname]: item,
+                                                    [index]: i,
+                                                    [array]: target
+                                                })
+                                            }, ""),
+                                            parsed = parser.parseFromString(html, "text/html");
+                                        if (!window.lightviewDebug) {
+                                            if (after) {
+                                                node.style.setProperty("display", "none")
+                                            } else {
+                                                while (node.lastElementChild) node.lastElementChild.remove();
+                                            }
+                                        }
+                                        while (parsed.body.firstChild) {
+                                            if (after) node.parentElement.insertBefore(parsed.body.firstChild, node);
+                                            else node.appendChild(parsed.body.firstChild);
+                                        }
+                                    })
+                                } else if (attr.template) {
+                                    render(!!attr.template, () => resolveNode(attr, this));
+                                }
+                            })
+                        }
+                    })
+                    shadow.normalize();
+                    observer.observe(ctx, {attributeOldValue: true});
+                    if (ctx.hasOwnProperty("connectedCallback")) ctx.connectedCallback();
+                })
+            }
 
             adopted(value) {
                 Object.defineProperty(this, "adoptedCallback", {configurable: true, writable: true, value});
@@ -589,7 +589,7 @@ const {observe} = (() => {
                         .forEach(([key, type]) => {
                             const variable = this.vars[key] ||= {type};
                             if (observed || imported) {
-                                variable.value = coerce(this.getAttribute(key), variable.type);
+                                variable.value = this.hasAttribute(key) ? coerce(this.getAttribute(key), variable.type) : variable.value;
                                 variable.observed = observed;
                                 variable.imported = imported;
                             }
@@ -610,7 +610,7 @@ const {observe} = (() => {
                             if (exported) {
                                 variable.exported = true;
                                 // in case the export goes up to at iframe
-                                setComponentAttribute(this,key,variable.value);
+                                if(variable.value!=null) setComponentAttribute(this,key,variable.value);
                                 addEventListener("change",({variableName,value}) => {
                                     // Array.isArray will not work here, Proxies mess up JSON.stringify for Arrays
                                     //value = value && typeof (value) === "object" ? (value instanceof Array ? JSON.stringify([...value]) : JSON.stringify(value)) : value+"";
@@ -753,80 +753,103 @@ const {observe} = (() => {
     let domContentLoadedEvent;
     window.addEventListener("DOMContentLoaded",(event) => domContentLoadedEvent = event);
     const loader = async (whenFramed) => {
-            if (!!document.querySelector('meta[name="l-importLinks"]')) await importLinks();
-            const importAnchors = !!document.querySelector('meta[name="l-importAnchors"]'),
-                bindForms = !!document.querySelector('meta[name="l-bindForms"]'),
-                unhide = !!document.querySelector('meta[name="l-unhide"]'),
-                isolated = !!document.querySelector('meta[name="l-isolate"]'),
-                enableFrames = !!document.querySelector('meta[name="l-enableFrames"]');
-            if(whenFramed) {
-                whenFramed({unhide,importAnchors,bindForms,isolated,enableFrames});
-                if(!isolated) {
-                    postMessage.enabled = true;
-                    window.addEventListener("message",({data}) => {
-                        data = JSON.parse(data);
-                        if(data.type==="framed") {
-                            const resize = () => {
-                                const {width,height} = document.body.getBoundingClientRect();
-                                postMessage({type:"setAttribute",argsList:["width",width]})
-                                postMessage({type:"setAttribute",argsList:["height",height+20]});
-                            }
-                            resize();
-                            onresize(document.body,() => {
-                                resize();
-                            })
-                        }
-                        const event = new CustomEvent(data.type,{detail:data});
-
-                    });
-                   /* window.addEventListener("resize",() => {
-                        const {width,height} = document.body.getBoundingClientRect();
-                        postMessage({type:"setAttribute",argsList:["width",width]})
-                        postMessage({type:"setAttribute",argsList:["height",height]})
-                    })*/
-                    const url = new URL(window.location.href);
-                    document.lightviewId = url.searchParams.get("id");
-                    postMessage({type:"DOMContentLoaded"})
-                }
-            } else if (url.searchParams.has("as")) {
-                bodyAsComponent({as:url.searchParams.get("as"),unhide,importAnchors,bindForms});
-            }
-            if(enableFrames) {
+        if (!!document.querySelector('meta[name="l-importLinks"]')) await importLinks();
+        const importAnchors = !!document.querySelector('meta[name="l-importAnchors"]'),
+            bindForms = !!document.querySelector('meta[name="l-bindForms"]'),
+            unhide = !!document.querySelector('meta[name="l-unhide"]'),
+            isolated = !!document.querySelector('meta[name="l-isolate"]'),
+            enableFrames = !!document.querySelector('meta[name="l-enableFrames"]');
+        if(whenFramed) {
+            whenFramed({unhide,importAnchors,bindForms,isolated,enableFrames});
+            if(!isolated) {
                 postMessage.enabled = true;
-                window.addEventListener("message",(message) => {
-                    const {type,iframeId,argsList,href} = JSON.parse(message.data),
-                        iframe = document.getElementById(iframeId);
-                    if(iframe) {
-                        if(type==="DOMContentLoaded") {
-                            postMessage({type:"framed",href:window.location.href},iframe);
-                            Object.defineProperty(domContentLoadedEvent,"currentTarget",{enumerable:false,configurable:true,value:iframe});
-                            domContentLoadedEvent.href = href;
-                            domContentLoadedEvent.srcElement = iframe;
-                            domContentLoadedEvent.bubbles = false;
-                            domContentLoadedEvent.path = getNodePath(iframe);
-                            Object.defineProperty(domContentLoadedEvent,"timeStamp",{enumerable:false,configurable:true,value:performance.now()})
-                            iframe.dispatchEvent(domContentLoadedEvent);
-                            return;
+                window.addEventListener("message",({data}) => {
+                    const {type,argsList} = JSON.parse(data);
+                    if(type==="framed") {
+                        const resize = () => {
+                            const {width,height} = document.body.getBoundingClientRect();
+                            postMessage({type:"setAttribute",argsList:["width",width]})
+                            postMessage({type:"setAttribute",argsList:["height",height+20]});
                         }
-                        if(type==="setAttribute") {
-                            const [name,value] = [...argsList];
-                            if(iframe.getAttribute(name)!==value+"") iframe.setAttribute(name,value);
-                            return;
-                        }
-                        if(type==="removeAttribute") {
-                            iframe.removeAttribute(...argsList);
-                            return;
-                        }
+                        resize();
+                        onresize(document.body,() => {
+                            resize();
+                        });
+                        return
                     }
-                    console.warn("iframe posted a message without providing an id",message);
+                    if(type==="setAttribute") {
+                        const [name,value] = [...argsList],
+                            variable = document.body.vars[name];
+                        if(variable && variable.imported) {
+                            document.body.setVariable(name,value);
+                        }
+                        return;
+                    }
+                    if(type==="removeAttribute") {
+                        const [name] = argsList[0],
+                            variable = document.body.vars[name];
+                        if(variable && variable.imported) {
+                            document.body.setVariable(name,undefined);
+                        }
+                        return;
+                    }
                 });
+                const url = new URL(window.location.href);
+                document.lightviewId = url.searchParams.get("id");
+                postMessage({type:"DOMContentLoaded"})
             }
+        } else if (url.searchParams.has("as")) {
+            bodyAsComponent({as:url.searchParams.get("as"),unhide,importAnchors,bindForms});
         }
+        if(enableFrames) {
+            postMessage.enabled = true;
+            window.addEventListener("message",(message) => {
+                const {type,iframeId,argsList,href} = JSON.parse(message.data),
+                    iframe = document.getElementById(iframeId);
+                if(iframe) {
+                    if(type==="DOMContentLoaded") {
+                        postMessage({type:"framed",href:window.location.href},iframe);
+                        Object.defineProperty(domContentLoadedEvent,"currentTarget",{enumerable:false,configurable:true,value:iframe});
+                        domContentLoadedEvent.href = href;
+                        domContentLoadedEvent.srcElement = iframe;
+                        domContentLoadedEvent.bubbles = false;
+                        domContentLoadedEvent.path = getNodePath(iframe);
+                        Object.defineProperty(domContentLoadedEvent,"timeStamp",{enumerable:false,configurable:true,value:performance.now()})
+                        iframe.dispatchEvent(domContentLoadedEvent);
+                        return;
+                    }
+                    if(type==="setAttribute") {
+                        const [name,value] = [...argsList];
+                        if(iframe.getAttribute(name)!==value+"") iframe.setAttribute(name,value);
+                        return;
+                    }
+                    if(type==="removeAttribute") {
+                        iframe.removeAttribute(...argsList);
+                        return;
+                    }
+                }
+                console.warn("iframe posted a message without providing an id",message);
+            });
+            const mutationCallback = (mutationsList) => {
+                const console = document.getElementById("console");
+                for (const {target,attributeName,oldValue} of mutationsList) {
+                    if(!["height","width"].includes(attributeName)) {
+                        const value = target.getAttribute(attributeName);
+                        if (!value) postMessage({type: "removeAttribute", argsList: [attributeName]}, iframe)
+                        else if (value !== oldValue) postMessage({type: "setAttribute",argsList: [attributeName,value]}, iframe)
+                    }
+                }
+            };
+            const observer = new MutationObserver(mutationCallback),
+                iframe = document.getElementById("myframe");
+            observer.observe(iframe, { attributes:true, attributeOldValue: true });
+        }
+    }
     const whenFramed = (f,{isolated}={}) => {
         document.addEventListener("DOMContentLoaded",(event) => loader(f));
     }
     Object.defineProperty(Lightview,"whenFramed",{configurable:true,writable:true,value:whenFramed});
-    if(window.location===window.parent.location || !(window.parent instanceof Window)) { // CodePen mucks with window.parent
+    if(window.location===window.parent.location || !(window.parent instanceof Window) || window.parent!==window) { // CodePen mucks with window.parent
         document.addEventListener("DOMContentLoaded",() => loader())
     }
 
