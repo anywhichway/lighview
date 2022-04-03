@@ -1,0 +1,29 @@
+{
+  "name": "lightview",
+  "version": "1.3.1b",
+  "description": "Small, simple, powerful web UI creation ... imagine a blend of Svelte, React, Vue, Riot and more.",
+  "main": "lightview.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anywhichway/lightview.git"
+  },
+  "keywords": [
+    "svelte",
+    "react",
+    "angular",
+    "riot",
+    "vue",
+    "moon",
+    "hyperapp",
+    "hyperhtml"
+  ],
+  "author": "Simon Y. Blackwell",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/anywhichway/lightview/issues"
+  },
+  "homepage": "https://github.com/anywhichway/lightview#readme"
+}
