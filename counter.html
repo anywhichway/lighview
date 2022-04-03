@@ -1,0 +1,30 @@
+<head>
+    <title>Counter</title>
+    <script src="../lightview.js?as=x-body"></script>
+</head>
+
+<body>
+<p>
+    <button l-on:click="bump">Click count:${count}</button>
+</p>
+
+<script type="lightview/module">
+    self.variables({
+      count: number
+    }, {
+      reactive
+    });
+    debugger;
+    count = 0;
+    self.bump = () => count++;
+  </script>
+
+<style>
+    button {
+        margin: 20px;
+        background: gray
+    }
+</style>
+</body>
+
+</html>

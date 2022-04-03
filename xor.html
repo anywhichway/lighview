@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <template id="audiostream">
+        <p>${name}</p>
+        <p>
+            Play: <input name="play" type="checkbox" l-bind="run" checked="${run}">
+        </p>
+        <script type="lightview/module">
+      self.variables({
+        run: boolean
+      });
+      self.variables({
+        name: string
+      }, {
+        imported
+      });
+      addEventListener("change", ({
+        variableName,
+        value
+      }) => {
+        if (variableName === "run" && value === true) {
+          self.siblings.forEach((sibling) => {
+            sibling.setValue(variableName, false);
+          })
+        }
+      })
+    </script>
+    </template>
+    <title>Form</title>
+    <script src="./lightview.js"></script>
+    <script>
+        Lightview.createComponent("x-audiostream", document.getElementById("audiostream"), {
+            bindForms: true
+        })
+    </script>
+</head>
+
+<body>
+<div style="margin:20px">
+    <table>
+        <th>
+        <td colspan="3">Audio Streams</td>
+        </th>
+        <tr>
+            <td style="width:33%;text-align:center">
+                <x-audiostream name="Classical"></x-audiostream>
+            </td>
+            <td style="width:33%;text-align:center">
+                <x-audiostream name="Country"></x-audiostream>
+            </td>
+            <td style="width:33%;text-align:center">
+                <x-audiostream name="Classic Rock"></x-audiostream>
+            </td>
+        </tr>
+    </table>
+</div>
+
+</body>
+
+</html>
