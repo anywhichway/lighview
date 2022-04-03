@@ -265,9 +265,7 @@ const {observe} = (() => {
                             if (!nodes.includes(node)) nodes.push(node);
                         }
                     })
-                    if (!skip) {
-                        if (!node.shadowRoot) nodes.push(...getNodes(node));
-                    }
+                    if (!skip && !node.shadowRoot) nodes.push(...getNodes(node));
                 }
             }
         }
@@ -308,9 +306,7 @@ const {observe} = (() => {
         })
     }
     const _bindForms = (node, component) => {
-        [...node.querySelectorAll("input")].forEach((input) => {
-            bindInput(input,component);
-        })
+        [...node.querySelectorAll("input")].forEach((input) => bindInput(input,component))
     }
     const bindInput = (input,component) => {
         const name = input.getAttribute("name"),
@@ -402,9 +398,7 @@ const {observe} = (() => {
                             value: (...args) => this.shadowRoot[fname](...args)
                         })
                     });
-                [...dom.childNodes].forEach((child) => {
-                    shadow.appendChild(child.cloneNode(true));
-                })
+                [...dom.childNodes].forEach((child) => shadow.appendChild(child.cloneNode(true)));
                 if (bindForms) _bindForms(shadow, this);
                 if(importAnchors) _importAnchors(shadow,this);
             }
@@ -615,11 +609,8 @@ const {observe} = (() => {
                                     // Array.isArray will not work here, Proxies mess up JSON.stringify for Arrays
                                     //value = value && typeof (value) === "object" ? (value instanceof Array ? JSON.stringify([...value]) : JSON.stringify(value)) : value+"";
                                     value = typeof(value)==="string" || !value ? value : JSON.stringify(value);
-                                    if(value==null) {
-                                        removeComponentAttribute(this,variableName);
-                                    } else {
-                                        setComponentAttribute(this,variableName,value);
-                                    }
+                                    if(value==null) removeComponentAttribute(this,variableName);
+                                    else setComponentAttribute(this,variableName,value);
                                 })
                             }
                         });
@@ -634,11 +625,8 @@ const {observe} = (() => {
                                 value = typeof(value)==="string" || value==null ? value : JSON.stringify(value);
                                 const oldvalue = input.getAttribute("value")||"";
                                 if(oldvalue!==value) {
-                                    if(value==null) {
-                                        input.removeAttribute("value");
-                                    } else {
-                                        input.setAttribute("value",value);
-                                    }
+                                    if(value==null) input.removeAttribute("value");
+                                    else input.setAttribute("value",value);
                                     try {
                                         input.setSelectionRange(0, Math.max(oldvalue.length,value ? value.length : 0)); // shadowDom sometimes fails to rerender unless this is done;
                                         input.setRangeText(value||"",0,  Math.max(oldvalue.length,value ? value.length : 0));
@@ -780,17 +768,13 @@ const {observe} = (() => {
                     if(type==="setAttribute") {
                         const [name,value] = [...argsList],
                             variable = document.body.vars[name];
-                        if(variable && variable.imported) {
-                            document.body.setVariable(name,value);
-                        }
+                        if(variable && variable.imported) document.body.setVariable(name,value);
                         return;
                     }
                     if(type==="removeAttribute") {
                         const [name] = argsList[0],
                             variable = document.body.vars[name];
-                        if(variable && variable.imported) {
-                            document.body.setVariable(name,undefined);
-                        }
+                        if(variable && variable.imported) document.body.setVariable(name,undefined);
                         return;
                     }
                 });
@@ -855,5 +839,3 @@ const {observe} = (() => {
 
     return {observe}
 })();
-
-
