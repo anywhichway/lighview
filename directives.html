@@ -7,65 +7,57 @@
 
 <body>
 
-
-<p>
-Show: <input type="checkbox" :="${on}" l-bind="on">
+<div style="margin:20px">
+    <p>
+        Show: <input type="checkbox" value="${on}">
     <div l-if="${on}">
-        Show is true
+        Now you've done it. You've exposed me.
     </div>
-</p>
-<p>
+    </p>
+    <p>
 
-<input id="red" type="radio" name="myradio" value="red" :="${color}" l-bind="color"> Red
-<input id="yellow" type="radio" name="myradio" value="yellow" :="${color}" l-bind="color"> Yellow
-<input id="green" type="radio" name="myradio" value="green" :="${color}" l-bind="color"> Green
-</p>
-
-<p>
-    <select l-bind="color" value="${color}">
-        <option value="red">Red</option>
-        <option value="yellow">Yellow</option>
-        <option value="green">Green</option>
-    </select>
-</p>
+    <p>
+        How would you like that burger?<br>
+        <select value="${options}" multiple>
+            <option>lettuce</option>
+            <option>tomato</option>
+            <option>cheese</option>
+        </select>
+    </p>
 
 
-<p>
-    How would you like that burger?<br>
-    <select l-bind="options" value="${options}" multiple>
-        <option>lettuce</option>
-        <option>tomato</option>
-        <option>cheese</option>
-    </select>
-</p>
+    For (defaults to each)
+    <ul l-for:each="${options}">
+        <li>${index}:${item}</li>
+    </ul>
+    For Each
+    <ul l-for:each="${options}">
+        <li>${index}:${item}</li>
+    </ul>
+    For Values
+    <ul l-for:values="${options}">
+        <li>${item}:${index}</li>
+    </ul>
+    For Keys
+    <ul l-for:keys="${options}">
+        <li>${item}</li>
+    </ul>
+    For Entries
+    <ul l-for:entries="${options}">
+        <li>${item[0]}:${item[1]}</li>
+    </ul>
 
-
-
-<ul l-for:each="${children}">
-    <li>${index}:${element}</li>
-</ul>
-<ul l-for:values:value:index='{"1":"v1","2":"v2","3":"v3"}'>
-    <li>${value}:${index}</li>
-</ul>
-<ul l-for:keys:key='{"name":"joe","age":27}'>
-    <li>${key}</li>
-</ul>
-<ul l-for:entries:entry="${children}">
-    <li>${entry[0]}:${entry[1]}</li>
-</ul>
-
-Variable Values
-<p id="variables"></p>
-
+    Variable Values
+    <p id="variables"></p>
+</div>
 <script type="lightview/module">
-self.variables({on:boolean,off:boolean,color:string,children:Array,options:Array},{reactive});
+self.variables({on:boolean,options:Array},{reactive});
 
 on = true;
-color = "yellow";
-children = ["John","Mary","Jane"];
-options = ["tomato"];
+options = ["lettuce"];
 
-addEventListener("change",()=> {
+// demo instrumentation
+const variableValues = () => {
     const el = self.getElementById("variables");
     while(el.lastElementChild) el.lastElementChild.remove();
     self.getVariableNames().forEach((name) => {
@@ -73,7 +65,12 @@ addEventListener("change",()=> {
         line.innerText = `${name} = ${JSON.stringify(self.getValue(name))}`;
         el.appendChild(line);
     });
+};
+variableValues();
+addEventListener("change",()=> {
+    variableValues()
 });
+
 </script>
 </body>
 

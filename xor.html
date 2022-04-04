@@ -5,12 +5,12 @@
     <template id="audiostream">
         <p>${name}</p>
         <p>
-            Play: <input name="play" type="checkbox" l-bind="run" checked="${run}">
+            Play: <input type="checkbox" value="${run}">
         </p>
         <script type="lightview/module">
       self.variables({
         run: boolean
-      });
+      },{reactive});
       self.variables({
         name: string
       }, {
@@ -31,9 +31,7 @@
     <title>Form</title>
     <script src="./lightview.js"></script>
     <script>
-        Lightview.createComponent("x-audiostream", document.getElementById("audiostream"), {
-            bindForms: true
-        })
+        Lightview.createComponent("x-audiostream", document.getElementById("audiostream"))
     </script>
 </head>
 

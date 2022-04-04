@@ -264,14 +264,14 @@ const {observe} = (() => {
                     nodes.push(node);
                 } else if (node.nodeType === Node.ELEMENT_NODE) {
                     let skip;
+                    if(node.getAttribute("type")==="radio") nodes.push(node);
                     [...node.attributes].forEach((attr) => {
                         if (attr.value.includes("${")) {
                             attr.template ||= attr.value;
-                            if (!nodes.includes(node)) nodes.push(node);
-                        }
-                        if (attr.name.includes(":") || attr.name.startsWith("l-")) {
+                            nodes.push(node);
+                        } else if (attr.name.includes(":") || attr.name.startsWith("l-")) {
                             skip = attr.name.includes("l-for:");
-                            if (!nodes.includes(node)) nodes.push(node);
+                            nodes.push(node)
                         }
                     })
                     if (!skip && !node.shadowRoot) nodes.push(...getNodes(node));
@@ -281,7 +281,7 @@ const {observe} = (() => {
         return nodes;
     }
     const resolveNode = (node, component) => {
-        if (node.template) {
+        if (node?.template) {
             try {
                 const value = Function("context", "with(context) { return `" + node.template + "` }")(component.varsProxy);
                 node.nodeValue = value === "null" || value === "undefined" ? "" : value;
@@ -289,11 +289,11 @@ const {observe} = (() => {
                 if (!e.message.includes("defined")) throw e; // actually looking for undefined or not defined
             }
         }
-        return node.nodeValue;
+        return node?.nodeValue;
     }
-    const render = (template, render) => {
+    const render = (hasTemplate, render) => {
         let observer;
-        if (template) {
+        if (hasTemplate) {
             if (observer) observer.cancel();
             observer = observe(render)
         } else {
@@ -314,37 +314,17 @@ const {observe} = (() => {
             addListener(node,"click", anchorHandler);
         })
     }
-    const _bindForms = (node, component) => {
-        [...node.querySelectorAll("input")].forEach((input) => bindInput(input, component))
-    }
-    const bindInput = (input, component) => {
-        let name = input.getAttribute("name"),
-            vname = input.getAttribute("l-bind") || name;
-        name ||= vname;
-        if (name) {
-            if (!input.hasAttribute("l-bind")) input.setAttribute("l-bind", vname)
+    const bindInput = (input, name, component) => {
             const inputtype = input.tagName === "SELECT" ? "text" : input.getAttribute("type"),
                 type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype),
                 deflt = input.getAttribute("default"),
                 value = input.getAttribute("value");
-            let variable = component.vars[vname] || {type};
+            let variable = component.vars[name] || {type};
             if (type !== variable.type) {
                 if (variable.type === "any" || variable.type === "unknown") variable.type = type;
-                else throw new TypeError(`Attempt to bind <input name="${name}" type="${type}"> to variable ${vname}:${variable.type}`)
+                else throw new TypeError(`Attempt to bind <input name="${name}" type="${type}"> to variable ${name}:${variable.type}`)
             }
-            component.variables({[vname]: type});
-            variable = component.vars[vname];
-            //if (value || deflt) {
-            if (inputtype !== "radio") {
-                if (value && !value.includes("${")) {
-                    variable.value = coerce(value, type);
-                    //input.setAttribute("value", `\${${name}}`);
-                } else if (deflt && !deflt.includes("${")) {
-                    variable.value = coerce(deflt, type);
-                    //input.setAttribute("default", `\${${name}}`);
-                }
-            }
-            //}
+            component.variables({[name]: type});
             addListener(input,"change", (event) => {
                 event.stopImmediatePropagation();
                 const target = event.target;
@@ -354,12 +334,18 @@ const {observe} = (() => {
                 } else if (target.tagName === "SELECT") {
                     if (target.hasAttribute("multiple")) {
                         value = [...target.querySelectorAll("option")]
-                            .filter((option) => option.selected || option.getAttribute("value") == value || option.innerText == value)
+                            .filter((option) => option.selected || resolveNode(option.attributes.value,component)==value || option.innerText == value)
                             .map((option) => option.getAttribute("value") || option.innerText);
                     }
                 }
-                component.varsProxy[vname] = coerce(value, type);
+                component.varsProxy[name] = coerce(value, type);
             })
+    }
+    const tryParse = (value) => {
+        try {
+            return JSON.parse(value);
+        } catch(e) {
+            return value;
         }
     }
     let reserved = {
@@ -372,7 +358,7 @@ const {observe} = (() => {
         exported: {value: true, constant: true},
         imported: {value: true, constant: true}
     };
-    const createClass = (domElementNode, {observer, bindForms, importAnchors}) => {
+    const createClass = (domElementNode, {observer,  importAnchors}) => {
         const instances = new Set(),
             dom = domElementNode.tagName === "TEMPLATE"
                 ? domElementNode.content.cloneNode(true)
@@ -425,7 +411,6 @@ const {observe} = (() => {
                         })
                     });
                 [...dom.childNodes].forEach((child) => shadow.appendChild(child.cloneNode(true)));
-                if (bindForms) _bindForms(shadow, this);
                 if (importAnchors) _importAnchors(shadow, this);
             }
 
@@ -459,9 +444,7 @@ const {observe} = (() => {
                     const text = script.innerHTML.replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1").replaceAll(/\r?\n/g, "");
                     currentScript.innerHTML = `Function('if(window["${scriptid}"]?.ctx) { with(window["${scriptid}"].ctx) { ${text}; }  window["${scriptid}"](); }')(); `;
                     let resolver;
-                    promises.push(new Promise((resolve) => {
-                        resolver = resolve;
-                    }));
+                    promises.push(new Promise((resolve) => resolver = resolve));
                     window[scriptid] = () => {
                         delete window[scriptid];
                         currentScript.remove();
@@ -471,49 +454,93 @@ const {observe} = (() => {
                     ctx.appendChild(currentScript);
                 }
                 Promise.all(promises).then(() => {
-                    const inputs = [...ctx.shadowRoot.querySelectorAll("input[l-bind]"), ...ctx.shadowRoot.querySelectorAll("select[l-bind]")];
-                    inputs.forEach((input) => {
-                        bindInput(input, ctx);
-                    })
                     const nodes = getNodes(ctx);
                     nodes.forEach((node) => {
                         if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
                             render(!!node.template, () => resolveNode(node, this))
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
+                            // resolve the value before all else;
+                            const attr = node.attributes.value;
+                            let name;
+                            if(attr && attr.template) {
+                                render(!!attr.template,() => {
+                                    const value = resolveNode(attr, this),
+                                        eltype = resolveNode(node.attributes.type,ctx);
+                                    if(eltype==="checkbox") {
+                                        if(coerce(value,"boolean")===true) {
+                                            node.setAttribute("checked","");
+                                            node.checked = true;
+                                        } else {
+                                            node.removeAttribute("checked");
+                                            node.checked = false;
+                                        }
+                                        const vname = resolveNode(node.attributes.name,ctx);
+                                        if(vname) ctx.setValue(vname,node.checked,{coerceTo:"boolean"});
+                                    }
+                                    if(node.tagName==="SELECT") {
+                                        let values = [value];
+                                        if(node.hasAttribute("multiple")) values = coerce(value,Array);
+                                        [...node.querySelectorAll("option")].forEach((option) => {
+                                            if(option.hasAttribute("value")) {
+                                                if (values.includes(resolveNode(option.attributes.value, ctx))) {
+                                                    option.setAttribute("selected", "");
+                                                    option.selected = true;
+                                                }
+                                            } else if(option.innerText.trim()===value) {
+                                                option.setAttribute("selected","");
+                                                option.selected = true;
+                                            }
+                                        })
+                                    }
+                                });
+                                let name;
+                                for(const vname of this.getVariableNames()) {
+                                    if("${" + vname + "}" === attr.template) {
+                                        name = vname;
+                                        break;
+                                    }
+                                }
+                                if(name) bindInput(node,name,ctx);
+                            }
                             [...node.attributes].forEach((attr) => {
-                                const {name, value} = attr,
-                                    [type, ...params] = name.split(":");
-                                if (type === "" || type=="checked" || node.tagName === "SELECT") { // name is :something
+                                if(attr.name==="value") return;
+                                const {name, value} = attr;
+                                if(name==="type") {
+                                    if (value === "radio") {
+                                        const name = resolveNode(node.attributes.name, ctx);
+                                        for (const vname of this.getVariableNames()) {
+                                            if (vname === name) {
+                                                render(true, () => {
+                                                    const name = resolveNode(node.attributes.name, ctx),
+                                                        varvalue = Function("context", "with(context) { return `${" + name + "}` }")(ctx.varsProxy);
+                                                    if (varvalue == resolveNode(node.attributes.value,ctx)) {
+                                                        node.setAttribute("checked", "");
+                                                        node.checked = true;
+                                                    } else {
+                                                        node.removeAttribute("checked");
+                                                        node.checked = false;
+                                                    }
+                                                });
+                                                bindInput(node, name, ctx);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                               const [type, ...params] = name.split(":");
+                                if (type === "") { // name is :something
                                     render(!!attr.template, () => {
-                                        const attrtype = node.getAttribute("type"),
-                                            value = resolveNode(attr, this),
-                                            elvalue = node.getAttribute("value"),
-                                            elname = node.getAttribute("name");
+                                        const value = attr.value,
+                                            elvalue = resolveNode(node.attributes.value,ctx),
+                                            eltype = resolveNode(node.attributes.type,ctx),
+                                            elname = resolveNode(node.attributes.name,ctx);
                                         if (params[0]) {
                                             if (value === "true") node.setAttribute(params[0], "")
                                             else node.removeAttribute(params[0]);
-                                        } else if (attrtype === "checkbox" || node.tagName === "OPTION") {
-                                            if (value === "true") {
-                                                node.setAttribute("checked", "");
-                                            } else {
-                                                node.removeAttribute("checked");
-                                            }
-                                        } else if (attrtype === "radio") {
-                                            if (elvalue === value) {
-                                                node.setAttribute("checked", "");
-                                            }
-                                        } else if (name === "value" && node.tagName === "SELECT") {
-                                            node.setAttribute("value", value);
-                                            const values = value[0] === "[" ? JSON.parse(value) : value.split(","); // handle multiselect
-                                            [...node.querySelectorAll("option")].forEach((option) => {
-                                                if (option.hasAttribute("value")) {
-                                                    if (values.includes(option.getAttribute("value"))) {
-                                                        option.setAttribute("selected", true);
-                                                    }
-                                                } else if (values.includes(option.innerText)) {
-                                                    option.setAttribute("selected", true);
-                                                }
-                                            })
+                                        } else if (eltype=== "checkbox" || node.tagName === "OPTION") {
+                                            if (value === "true") node.setAttribute("checked", "")
+                                            else node.removeAttribute("checked");
                                         }
                                     })
                                 } else if (type === "l-on") {
@@ -532,7 +559,7 @@ const {observe} = (() => {
                                 } else if (type === "l-for") {
                                     node.template ||= node.innerHTML;
                                     render(!!attr.template, () => {
-                                        const [what = "each", vname = "element", index = "index", array = "array", after = false] = params,
+                                        const [what = "each", vname = "item", index = "index", array = "array", after = false] = params,
                                             value = resolveNode(attr, this),
                                             coerced = coerce(value, what === "each" ? Array : "object"),
                                             target = what === "each" ? coerced : Object[what](coerced),
@@ -652,9 +679,7 @@ const {observe} = (() => {
                                 variable.shared = true;
                                 addEventListener("change", ({variableName, value}) => {
                                     if (this.vars[variableName]?.shared) {
-                                        this.siblings.forEach((instance) => {
-                                            instance.setValue(variableName, value);
-                                        })
+                                        this.siblings.forEach((instance) => instance.setValue(variableName, value))
                                     }
                                 })
                             }
@@ -669,47 +694,6 @@ const {observe} = (() => {
                                 })
                             }
                         });
-                    addEventListener("change", ({variableName, value}) => {
-                        [...this.shadowRoot.querySelectorAll(`input[l-bind=${variableName}]`),
-                            ...this.shadowRoot.querySelectorAll(`select[l-bind=${variableName}]`)]
-                            .forEach((input) => {
-                                const eltype = input.getAttribute("type");
-                                if (eltype === "checkbox") { // at el option selected
-                                    if(!!value) {
-                                        input.setAttribute("checked", "");
-                                    } else {
-                                        input.removeAttribute("checked");
-                                    }
-                                    input.checked = !!value;
-                                } else if (eltype === "radio") {
-                                    if (input.getAttribute("value") === value) {
-                                        input.setAttribute("checked", "");
-                                        input.checked = true;
-                                    }
-                                } else if (input.tagName === "SELECT") {
-                                    const values = value && typeof (value) === "object" && value instanceof Array ? value : [value];
-                                    [...input.querySelectorAll("option")].forEach((option) => {
-                                        if (values.includes(option.getAttribute("value") || option.innerText)) {
-                                            option.setAttribute("selected", "");
-                                            option.selected = true;
-                                        }
-                                    })
-                                } else if (!eltype || eltype === "text") {
-                                    value = typeof (value) === "string" || value == null ? value : JSON.stringify(value);
-                                    const oldvalue = input.getAttribute("value") || "";
-                                    if (oldvalue !== value) {
-                                        if (value == null) input.removeAttribute("value");
-                                        else input.setAttribute("value", value);
-                                        try {
-                                            input.setSelectionRange(0, Math.max(oldvalue.length, value ? value.length : 0)); // shadowDom sometimes fails to rerender unless this is done;
-                                            input.setRangeText(value || "", 0, Math.max(oldvalue.length, value ? value.length : 0));
-                                        } catch (e) {
-
-                                        }
-                                    }
-                                }
-                            })
-                    })
                 }
                 return Object.entries(this.vars)
                     .reduce((result, [key, variable]) => {
@@ -737,13 +721,13 @@ const {observe} = (() => {
             }
         }
     }
-    const createComponent = (name, node, {observer, bindForms, importAnchors} = {}) => {
+    const createComponent = (name, node, {observer, importAnchors} = {}) => {
         let ctor = customElements.get(name);
         if (ctor) {
             console.warn(new Error(`${name} is already a CustomElement. Not redefining`));
             return ctor;
         }
-        ctor = createClass(node, {observer, bindForms, importAnchors});
+        ctor = createClass(node, {observer, importAnchors});
         customElements.define(name, ctor);
         return ctor;
     }
@@ -759,10 +743,9 @@ const {observe} = (() => {
             const html = await (await fetch(url.href)).text(),
                 dom = parser.parseFromString(html, "text/html"),
                 importAnchors = !!dom.head.querySelector('meta[name="l-importAnchors"]'),
-                bindForms = !!dom.head.querySelector('meta[name="l-bindForms"]'),
                 unhide = !!dom.head.querySelector('meta[name="l-unhide"]');
             if (unhide) dom.body.removeAttribute("hidden");
-            createComponent(as, dom.body, {observer, importAnchors, bindForms});
+            createComponent(as, dom.body, {observer, importAnchors});
         }
         return {as};
     }
@@ -773,9 +756,9 @@ const {observe} = (() => {
         }
     }
 
-    const bodyAsComponent = ({as = "x-body", unhide, importAnchors, bindForms} = {}) => {
+    const bodyAsComponent = ({as = "x-body", unhide, importAnchors} = {}) => {
         const parent = document.body.parentElement;
-        createComponent(as, document.body, {importAnchors, bindForms});
+        createComponent(as, document.body, {importAnchors});
         const component = document.createElement(as);
         parent.replaceChild(component, document.body);
         Object.defineProperty(document, "body", {
@@ -821,12 +804,11 @@ const {observe} = (() => {
     const loader = async (whenFramed) => {
         if (!!document.querySelector('meta[name="l-importLinks"]')) await importLinks();
         const importAnchors = !!document.querySelector('meta[name="l-importAnchors"]'),
-            bindForms = !!document.querySelector('meta[name="l-bindForms"]'),
             unhide = !!document.querySelector('meta[name="l-unhide"]'),
             isolated = !!document.querySelector('meta[name="l-isolate"]'),
             enableFrames = !!document.querySelector('meta[name="l-enableFrames"]');
         if (whenFramed) {
-            whenFramed({unhide, importAnchors, bindForms, isolated, enableFrames});
+            whenFramed({unhide, importAnchors, isolated, enableFrames});
             if (!isolated) {
                 postMessage.enabled = true;
                 addListener(window,"message", ({data}) => {
@@ -861,7 +843,7 @@ const {observe} = (() => {
                 postMessage({type: "DOMContentLoaded"})
             }
         } else if (url.searchParams.has("as")) {
-            bodyAsComponent({as: url.searchParams.get("as"), unhide, importAnchors, bindForms});
+            bodyAsComponent({as: url.searchParams.get("as"), unhide, importAnchors});
         }
         if (enableFrames) {
             postMessage.enabled = true;
