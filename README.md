@@ -1,4 +1,4 @@
-# lightview v1.4.1b (BETA)
+# lightview v1.4.2b (BETA)
 
 Small, simple, powerful web UI and micro front end creation ...
 
