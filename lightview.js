@@ -302,7 +302,7 @@ const {observe} = (() => {
     }
     const inputTypeToType = (inputType) => {
         if (!inputType) return "any"
-        if (["text", "tel", "email", "url", "search", "radio"].includes(inputType)) return "string";
+        if (["text", "tel", "email", "url", "search", "radio","color","password"].includes(inputType)) return "string";
         if (["number", "range"].includes(inputType)) return "number";
         if (["datetime"].includes(inputType)) return Date;
         if (["checkbox"].includes(inputType)) return "boolean";
@@ -325,7 +325,11 @@ const {observe} = (() => {
                 else throw new TypeError(`Attempt to bind <input name="${name}" type="${type}"> to variable ${name}:${variable.type}`)
             }
             component.variables({[name]: type});
-            addListener(input,"change", (event) => {
+            let eventname = "change";
+            if(input.tagName!=="SELECT" && (!inputtype || ["text","number","tel","email","url","search","password"].includes(inputtype))) {
+                eventname = "input";
+            }
+            addListener(input,eventname, (event) => {
                 event.stopImmediatePropagation();
                 const target = event.target;
                 let value = target.value;
