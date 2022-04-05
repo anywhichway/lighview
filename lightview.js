@@ -73,6 +73,7 @@ const {observe} = (() => {
         if (toType === "number") return parseFloat(value + "");
         if (toType === "boolean") {
             if (["on", "checked", "selected"].includes(value)) return true;
+            if(value==null || value==="") return false;
             try {
                 const parsed = JSON.parse(value + "");
                 if (typeof (parsed) === "boolean") return parsed;
@@ -127,7 +128,7 @@ const {observe} = (() => {
         }
         throw new TypeError(`Unable to coerce ${value} to ${toType}`)
     }
-    const Reactor = (value,component) => {
+    const Reactor = (value) => {
         if (value && typeof (value) === "object") {
             if (value.__isReactor__) return value;
             const childReactors = [],
@@ -155,7 +156,7 @@ const {observe} = (() => {
                             return value;
                         }
                         if (value && type === "object") {
-                            value = Reactor(value,component);
+                            value = Reactor(value);
                             childReactors.push(value);
                         }
                         target[property] = value;
@@ -165,7 +166,7 @@ const {observe} = (() => {
                         const type = typeof (value);
                         if (target[property] !== value) {
                             if (value && type === "object") {
-                                value = Reactor(value,component);
+                                value = Reactor(value);
                                 childReactors.push(value);
                             }
                             target[property] = value;
@@ -211,7 +212,7 @@ const {observe} = (() => {
                 if (newValue == null || type === "any" || newtype === type || (typetype === "function" && newValue && newtype === "object" && newValue instanceof type)) {
                     if (value !== newValue) {
                         event.oldValue = value;
-                        target[property].value = reactive ? Reactor(newValue,component) : newValue; // do first to prevent loops
+                        target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
                         target.postEvent.value("change", event);
                         if (event.defaultPrevented) target[property].value = value;
                     }
@@ -482,11 +483,17 @@ const {observe} = (() => {
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
                             // resolve the value before all else;
                             const attr = node.attributes.value;
-                            let name;
                             if (attr && attr.template) {
                                 render(!!attr.template, () => {
                                     const value = resolveNode(attr, this),
                                         eltype = resolveNode(node.attributes.type, ctx);
+                                    if(node.attributes.value) {
+                                        const template = attr.template;
+                                        if(/\$\{[a-zA-z_]+\}/g.test(template)) {
+                                            const name = template.substring(2,template.length-1);
+                                            if(!name.includes(" ")) bindInput(node,name,this,value);
+                                        }
+                                    }
                                     if (eltype === "checkbox") {
                                         if (coerce(value, "boolean") === true) {
                                             node.setAttribute("checked", "");
@@ -512,14 +519,6 @@ const {observe} = (() => {
                                                 option.selected = true;
                                             }
                                         })
-                                    }
-                                    if(node.attributes.value) {
-                                        const valueattr = node.attributes.value,
-                                            template = valueattr.template || valueattr.template.value;
-                                        if(template.startsWith("${") && template.endsWith("}")) {
-                                            const name = template.substring(2,template.length-1);
-                                            if(!name.includes(" ")) bindInput(node,name,this,value);
-                                        }
                                     }
                                 });
                             }
@@ -694,7 +693,7 @@ const {observe} = (() => {
                             }
                             if (reactive) {
                                 variable.reactive = true;
-                                this.vars[key] = Reactor(variable,this);
+                                this.vars[key] = Reactor(variable);
                             }
                             if (shared) {
                                 variable.shared = true;
