@@ -30,8 +30,8 @@ const {observe} = (() => {
     let CURRENTOBSERVER;
     const parser = new DOMParser();
 
-    const addListener = (node,eventName,callback) => {
-        node.addEventListener(eventName,callback); // just used to make code footprint smaller
+    const addListener = (node, eventName, callback) => {
+        node.addEventListener(eventName, callback); // just used to make code footprint smaller
     }
     const anchorHandler = async (event) => {
         event.preventDefault();
@@ -218,18 +218,18 @@ const {observe} = (() => {
             }
         });
     }
-    const createObserver = (domNode,framed) => {
+    const createObserver = (domNode, framed) => {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === "attributes") {
-                    if(framed) debugger;
+                    if (framed) debugger;
                     const name = mutation.attributeName,
                         target = mutation.target,
                         value = target.getAttribute(name);
-                    if(framed && name==="message" && target instanceof IFrameElement) {
-                        if(value) console.log("message",value);
+                    if (framed && name === "message" && target instanceof IFrameElement) {
+                        if (value) console.log("message", value);
                         target.removeAttribute(name);
-                        target.dispatchEvent("message",new CustomEvent("message",{detail:JSON.parse(value)}))
+                        target.dispatchEvent("message", new CustomEvent("message", {detail: JSON.parse(value)}))
                     }
                     if (target.observedAttributes && target.observedAttributes.includes(name)) {
                         if (value !== mutation.oldValue) {
@@ -270,7 +270,7 @@ const {observe} = (() => {
                     nodes.push(node);
                 } else if (node.nodeType === Node.ELEMENT_NODE) {
                     let skip;
-                    if(node.getAttribute("type")==="radio") nodes.push(node);
+                    if (node.getAttribute("type") === "radio") nodes.push(node);
                     [...node.attributes].forEach((attr) => {
                         if (attr.value.includes("${")) {
                             attr.template ||= attr.value;
@@ -308,7 +308,7 @@ const {observe} = (() => {
     }
     const inputTypeToType = (inputType) => {
         if (!inputType) return "any"
-        if (["text", "tel", "email", "url", "search", "radio","color","password"].includes(inputType)) return "string";
+        if (["text", "tel", "email", "url", "search", "radio", "color", "password"].includes(inputType)) return "string";
         if (["number", "range"].includes(inputType)) return "number";
         if (["datetime"].includes(inputType)) return Date;
         if (["checkbox"].includes(inputType)) return "boolean";
@@ -317,7 +317,7 @@ const {observe} = (() => {
     const _importAnchors = (node, component) => {
         [...node.querySelectorAll('a[href][target^="#"]')].forEach((node) => {
             node.removeEventListener("click", anchorHandler);
-            addListener(node,"click", anchorHandler);
+            addListener(node, "click", anchorHandler);
         })
     }
     const bindInput = (input, name, component) => {
@@ -332,10 +332,10 @@ const {observe} = (() => {
         }
         component.variables({[name]: type});
         let eventname = "change";
-        if(input.tagName!=="SELECT" && (!inputtype || ["text","number","tel","email","url","search","password"].includes(inputtype))) {
+        if (input.tagName !== "SELECT" && (!inputtype || ["text", "number", "tel", "email", "url", "search", "password"].includes(inputtype))) {
             eventname = "input";
         }
-        addListener(input,eventname, (event) => {
+        addListener(input, eventname, (event) => {
             event.stopImmediatePropagation();
             const target = event.target;
             let value = target.value;
@@ -344,7 +344,7 @@ const {observe} = (() => {
             } else if (target.tagName === "SELECT") {
                 if (target.hasAttribute("multiple")) {
                     value = [...target.querySelectorAll("option")]
-                        .filter((option) => option.selected || resolveNode(option.attributes.value,component)==value || option.innerText == value)
+                        .filter((option) => option.selected || resolveNode(option.attributes.value, component) == value || option.innerText == value)
                         .map((option) => option.getAttribute("value") || option.innerText);
                 }
             }
@@ -354,7 +354,7 @@ const {observe} = (() => {
     const tryParse = (value) => {
         try {
             return JSON.parse(value);
-        } catch(e) {
+        } catch (e) {
             return value;
         }
     }
@@ -368,7 +368,7 @@ const {observe} = (() => {
         exported: {value: true, constant: true},
         imported: {value: true, constant: true}
     };
-    const createClass = (domElementNode, {observer,  importAnchors, framed}) => {
+    const createClass = (domElementNode, {observer, importAnchors, framed}) => {
         const instances = new Set(),
             dom = domElementNode.tagName === "TEMPLATE"
                 ? domElementNode.content.cloneNode(true)
@@ -382,7 +382,7 @@ const {observe} = (() => {
             constructor() {
                 super();
                 instances.add(this);
-                observer ||= createObserver(this,framed);
+                observer ||= createObserver(this, framed);
                 const currentComponent = this,
                     shadow = this.attachShadow({mode: "open"}),
                     eventlisteners = {};
@@ -412,7 +412,7 @@ const {observe} = (() => {
                 };
                 this.defaultAttributes = domElementNode.tagName === "TEMPLATE" ? domElementNode.attributes : dom.attributes;
                 this.varsProxy = createVarsProxy(this.vars, this, CustomElement);
-                if(framed || CustomElement.lightviewFramed) this.variables({message:Object},{exported:true});
+                if (framed || CustomElement.lightviewFramed) this.variables({message: Object}, {exported: true});
                 ["getElementById", "querySelector", "querySelectorAll"]
                     .forEach((fname) => {
                         Object.defineProperty(this, fname, {
@@ -473,50 +473,50 @@ const {observe} = (() => {
                             // resolve the value before all else;
                             const attr = node.attributes.value;
                             let name;
-                            if(attr && attr.template) {
-                                render(!!attr.template,() => {
+                            if (attr && attr.template) {
+                                render(!!attr.template, () => {
                                     const value = resolveNode(attr, this),
-                                        eltype = resolveNode(node.attributes.type,ctx);
-                                    if(eltype==="checkbox") {
-                                        if(coerce(value,"boolean")===true) {
-                                            node.setAttribute("checked","");
+                                        eltype = resolveNode(node.attributes.type, ctx);
+                                    if (eltype === "checkbox") {
+                                        if (coerce(value, "boolean") === true) {
+                                            node.setAttribute("checked", "");
                                             node.checked = true;
                                         } else {
                                             node.removeAttribute("checked");
                                             node.checked = false;
                                         }
-                                        const vname = resolveNode(node.attributes.name,ctx);
-                                        if(vname) ctx.setValue(vname,node.checked,{coerceTo:"boolean"});
+                                        const vname = resolveNode(node.attributes.name, ctx);
+                                        if (vname) ctx.setValue(vname, node.checked, {coerceTo: "boolean"});
                                     }
-                                    if(node.tagName==="SELECT") {
+                                    if (node.tagName === "SELECT") {
                                         let values = [value];
-                                        if(node.hasAttribute("multiple")) values = coerce(value,Array);
+                                        if (node.hasAttribute("multiple")) values = coerce(value, Array);
                                         [...node.querySelectorAll("option")].forEach((option) => {
-                                            if(option.hasAttribute("value")) {
+                                            if (option.hasAttribute("value")) {
                                                 if (values.includes(resolveNode(option.attributes.value, ctx))) {
                                                     option.setAttribute("selected", "");
                                                     option.selected = true;
                                                 }
-                                            } else if(option.innerText.trim()===value) {
-                                                option.setAttribute("selected","");
+                                            } else if (option.innerText.trim() === value) {
+                                                option.setAttribute("selected", "");
                                                 option.selected = true;
                                             }
                                         })
                                     }
                                 });
                                 let name;
-                                for(const vname of this.getVariableNames()) {
-                                    if("${" + vname + "}" === attr.template) {
+                                for (const vname of this.getVariableNames()) {
+                                    if ("${" + vname + "}" === attr.template) {
                                         name = vname;
                                         break;
                                     }
                                 }
-                                if(name) bindInput(node,name,ctx);
+                                if (name) bindInput(node, name, ctx);
                             }
                             [...node.attributes].forEach((attr) => {
-                                if(attr.name==="value") return;
+                                if (attr.name === "value") return;
                                 const {name, value} = attr;
-                                if(name==="type") {
+                                if (name === "type") {
                                     if (value === "radio") {
                                         const name = resolveNode(node.attributes.name, ctx);
                                         for (const vname of this.getVariableNames()) {
@@ -524,7 +524,7 @@ const {observe} = (() => {
                                                 render(true, () => {
                                                     const name = resolveNode(node.attributes.name, ctx),
                                                         varvalue = Function("context", "with(context) { return `${" + name + "}` }")(ctx.varsProxy);
-                                                    if (varvalue == resolveNode(node.attributes.value,ctx)) {
+                                                    if (varvalue == resolveNode(node.attributes.value, ctx)) {
                                                         node.setAttribute("checked", "");
                                                         node.checked = true;
                                                     } else {
@@ -543,13 +543,13 @@ const {observe} = (() => {
                                 if (type === "") { // name is :something
                                     render(!!attr.template, () => {
                                         const value = attr.value,
-                                            elvalue = resolveNode(node.attributes.value,ctx),
-                                            eltype = resolveNode(node.attributes.type,ctx),
-                                            elname = resolveNode(node.attributes.name,ctx);
+                                            elvalue = resolveNode(node.attributes.value, ctx),
+                                            eltype = resolveNode(node.attributes.type, ctx),
+                                            elname = resolveNode(node.attributes.name, ctx);
                                         if (params[0]) {
                                             if (value === "true") node.setAttribute(params[0], "")
                                             else node.removeAttribute(params[0]);
-                                        } else if (eltype=== "checkbox" || node.tagName === "OPTION") {
+                                        } else if (eltype === "checkbox" || node.tagName === "OPTION") {
                                             if (value === "true") node.setAttribute("checked", "")
                                             else node.removeAttribute("checked");
                                         }
@@ -560,7 +560,7 @@ const {observe} = (() => {
                                         const value = resolveNode(attr, this);
                                         if (listener) node.removeEventListener(params[0], listener);
                                         listener = this[value] || window[value] || Function(value);
-                                        addListener(node,params[0], listener);
+                                        addListener(node, params[0], listener);
                                     })
                                 } else if (type === "l-if") {
                                     render(!!attr.template, () => {
@@ -634,7 +634,7 @@ const {observe} = (() => {
 
             getVariableNames() {
                 return Object.keys(this.vars).filter((name) => {
-                    return !(name in reserved) && !["self","addEventListener","postEvent"].includes(name)
+                    return !(name in reserved) && !["self", "addEventListener", "postEvent"].includes(name)
                 })
             }
 
@@ -732,17 +732,17 @@ const {observe} = (() => {
             }
         }
     }
-    const createComponent = (name, node, {observer, importAnchors,framed} = {}) => {
+    const createComponent = (name, node, {observer, importAnchors, framed} = {}) => {
         let ctor = customElements.get(name);
         if (ctor) {
-            if(framed && !ctor.lightviewFramed) {
+            if (framed && !ctor.lightviewFramed) {
                 ctor.lightviewFramed = true;
             } else {
                 console.warn(new Error(`${name} is already a CustomElement. Not redefining`));
             }
             return ctor;
         }
-        ctor = createClass(node, {observer, importAnchors,framed});
+        ctor = createClass(node, {observer, importAnchors, framed});
         customElements.define(name, ctor);
         return ctor;
     }
@@ -771,9 +771,9 @@ const {observe} = (() => {
         }
     }
 
-    const bodyAsComponent = ({as = "x-body", unhide, importAnchors,framed} = {}) => {
+    const bodyAsComponent = ({as = "x-body", unhide, importAnchors, framed} = {}) => {
         const parent = document.body.parentElement;
-        createComponent(as, document.body, {importAnchors,framed});
+        createComponent(as, document.body, {importAnchors, framed});
         const component = document.createElement(as);
         parent.replaceChild(component, document.body);
         Object.defineProperty(document, "body", {
@@ -815,7 +815,7 @@ const {observe} = (() => {
 
     const url = new URL(document.currentScript.getAttribute("src"), window.location.href);
     let domContentLoadedEvent;
-    if(!domContentLoadedEvent) addListener(window,"DOMContentLoaded", (event) => domContentLoadedEvent = event);
+    if (!domContentLoadedEvent) addListener(window, "DOMContentLoaded", (event) => domContentLoadedEvent = event);
     let OBSERVER;
     const loader = async (whenFramed) => {
         if (!!document.querySelector('meta[name="l-importLinks"]')) await importLinks();
@@ -824,10 +824,10 @@ const {observe} = (() => {
             isolated = !!document.querySelector('meta[name="l-isolate"]'),
             enableFrames = !!document.querySelector('meta[name="l-enableFrames"]');
         if (whenFramed) {
-            whenFramed({unhide, importAnchors, isolated, enableFrames, framed:true});
+            whenFramed({unhide, importAnchors, isolated, enableFrames, framed: true});
             if (!isolated) {
                 postMessage.enabled = true;
-                addListener(window,"message", ({data}) => {
+                addListener(window, "message", ({data}) => {
                     const {type, argsList} = JSON.parse(data);
                     if (type === "framed") {
                         const resize = () => {
@@ -863,7 +863,7 @@ const {observe} = (() => {
         }
         if (enableFrames) {
             postMessage.enabled = true;
-            addListener(window,"message", (message) => {
+            addListener(window, "message", (message) => {
                 const {type, iframeId, argsList, href} = JSON.parse(message.data),
                     iframe = document.getElementById(iframeId);
                 if (iframe) {
@@ -900,7 +900,7 @@ const {observe} = (() => {
                 }
                 console.warn("iframe posted a message without providing an id", message);
             });
-            if(!OBSERVER) {
+            if (!OBSERVER) {
                 const mutationCallback = (mutationsList) => {
                     const console = document.getElementById("console");
                     for (const {target, attributeName, oldValue} of mutationsList) {
@@ -914,13 +914,16 @@ const {observe} = (() => {
                                 }, iframe)
                             }
                         }
-                        if(attributeName==="message") {
-                            if(value) {
+                        if (attributeName === "message") {
+                            if (value) {
                                 target.removeAttribute("message");
-                                target.dispatchEvent(new CustomEvent("message",{target,detail:JSON.parse(value)}))
+                                target.dispatchEvent(new CustomEvent("message", {target, detail: JSON.parse(value)}))
                             }
                         } else {
-                            target.dispatchEvent(new CustomEvent("attribute.changed",{target,detail:{attributeName,value,oldValue}}))
+                            target.dispatchEvent(new CustomEvent("attribute.changed", {
+                                target,
+                                detail: {attributeName, value, oldValue}
+                            }))
                         }
                     }
                 };
@@ -932,15 +935,17 @@ const {observe} = (() => {
     }
     const whenFramed = (f, {isolated} = {}) => {
         // loads for framed content
-        addListener(document,"DOMContentLoaded", (event) => loader(f));
+        addListener(document, "DOMContentLoaded", (event) => loader(f));
     }
     Lightview.whenFramed = whenFramed;
     //Object.defineProperty(Lightview, "whenFramed", {configurable: true, writable: true, value: whenFramed});
     if (window.location === window.parent.location || !(window.parent instanceof Window) || window.parent !== window) {
         // loads for unframed content
         // CodePen mucks with window.parent
-        addListener(document,"DOMContentLoaded", () => loader())
+        addListener(document, "DOMContentLoaded", () => loader())
     }
 
     return {observe}
 })();
+
+

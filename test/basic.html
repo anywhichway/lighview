@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Basic</title>
+    <template id="x-test">
+        <script type="lightview/module">
+            self.variables({color:string,checked:boolean,hamburger:Array},{exported,reactive});
+
+            color = "green";
+            checked = true;
+            hamburger = ["lettuce"];
+        </script>
+    </template>
+    <script src="../lightview.js"></script>
+    <script>
+        Lightview.createComponent("x-test",document.getElementById("x-test"));
+    </script>
+</head>
+<body>
+<x-test id="test"></x-test>
+</body>
+</html>

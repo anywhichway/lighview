@@ -1,0 +1,12 @@
+{
+  "moduleFileExtensions": ["mjs", "js", "jsx", "ts", "tsx", "json", "node"],
+  "testMatch": [
+    "**/?(*.)test.?js"
+  ],
+  "verbose": true,
+  "transform": {},
+  "testEnvironment": "jest-environment-node",
+  "globalSetup": "jest-environment-puppeteer/setup",
+  "globalTeardown": "jest-environment-puppeteer/teardown",
+  "testEnvironment": "jest-environment-puppeteer"
+}
