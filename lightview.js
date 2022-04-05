@@ -93,9 +93,18 @@ const {observe} = (() => {
                     if (isfunction) {
                         const instance = toType === Date ? new Date() : Object.create(toType.prototype);
                         if (instance instanceof Array) {
-                            const parsed = JSON.parse(value.startsWith("[") ? value : `[${value}]`);
-                            if (!Array.isArray(parsed)) throw new TypeError(`Expected an Array for parsed data`)
-                            parsed.forEach((item) => instance.push(item))
+                            let parsed = tryParse(value.startsWith("[") ? value : `[${value}]`);
+                            if (!Array.isArray(parsed)) {
+                                if(value.includes(",")) parsed = value.split(",");
+                                else {
+                                    parsed = tryParse(`["${value}"]`);
+                                    if(!Array.isArray(parsed) || parsed[0]!==value && parsed.length!==1) parsed = null;
+                                }
+                            }
+                            if (!Array.isArray(parsed)) {
+                                throw new TypeError(`Expected an Array for parsed data`)
+                            }
+                            instance.push(...parsed);
                         } else if (instance instanceof Date) {
                             instance.setTime(Date.parse(value));
                         } else {
@@ -118,7 +127,7 @@ const {observe} = (() => {
         }
         throw new TypeError(`Unable to coerce ${value} to ${toType}`)
     }
-    const Reactor = (value) => {
+    const Reactor = (value,component) => {
         if (value && typeof (value) === "object") {
             if (value.__isReactor__) return value;
             const childReactors = [],
@@ -131,7 +140,7 @@ const {observe} = (() => {
                                 return [...target];
                             }
                             if (property === "toString") return function toString() {
-                                return JSON.stringify(target);
+                                return JSON.stringify([...target]);
                             }
                         }
                         let value = target[property];
@@ -146,7 +155,7 @@ const {observe} = (() => {
                             return value;
                         }
                         if (value && type === "object") {
-                            value = Reactor(value);
+                            value = Reactor(value,component);
                             childReactors.push(value);
                         }
                         target[property] = value;
@@ -156,7 +165,7 @@ const {observe} = (() => {
                         const type = typeof (value);
                         if (target[property] !== value) {
                             if (value && type === "object") {
-                                value = Reactor(value);
+                                value = Reactor(value,component);
                                 childReactors.push(value);
                             }
                             target[property] = value;
@@ -202,7 +211,7 @@ const {observe} = (() => {
                 if (newValue == null || type === "any" || newtype === type || (typetype === "function" && newValue && newtype === "object" && newValue instanceof type)) {
                     if (value !== newValue) {
                         event.oldValue = value;
-                        target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
+                        target[property].value = reactive ? Reactor(newValue,component) : newValue; // do first to prevent loops
                         target.postEvent.value("change", event);
                         if (event.defaultPrevented) target[property].value = value;
                     }
@@ -229,7 +238,7 @@ const {observe} = (() => {
                     if (framed && name === "message" && target instanceof IFrameElement) {
                         if (value) console.log("message", value);
                         target.removeAttribute(name);
-                        target.dispatchEvent("message", new CustomEvent("message", {detail: JSON.parse(value)}))
+                        target.dispatchEvent(new CustomEvent("message", {detail: JSON.parse(value)}))
                     }
                     if (target.observedAttributes && target.observedAttributes.includes(name)) {
                         if (value !== mutation.oldValue) {
@@ -320,19 +329,20 @@ const {observe} = (() => {
             addListener(node, "click", anchorHandler);
         })
     }
-    const bindInput = (input, name, component) => {
-        const inputtype = input.tagName === "SELECT" ? "text" : input.getAttribute("type"),
+    const bindInput = (input, name, component,value) => {
+        const inputtype = input.tagName === "SELECT" || input.tagName === "TEXTAREA" ? "text" : input.getAttribute("type"),
             type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype),
-            deflt = input.getAttribute("default"),
-            value = input.getAttribute("value");
+            deflt = input.getAttribute("default");
+        value ||= input.getAttribute("value");
         let variable = component.vars[name] || {type};
         if (type !== variable.type) {
             if (variable.type === "any" || variable.type === "unknown") variable.type = type;
             else throw new TypeError(`Attempt to bind <input name="${name}" type="${type}"> to variable ${name}:${variable.type}`)
         }
         component.variables({[name]: type});
+        component.setValue(name,value);
         let eventname = "change";
-        if (input.tagName !== "SELECT" && (!inputtype || ["text", "number", "tel", "email", "url", "search", "password"].includes(inputtype))) {
+        if (input.tagName !== "SELECT" && (!inputtype || input.tagName === "TEXTAREA" || ["text", "number", "tel", "email", "url", "search", "password"].includes(inputtype))) {
             eventname = "input";
         }
         addListener(input, eventname, (event) => {
@@ -503,15 +513,15 @@ const {observe} = (() => {
                                             }
                                         })
                                     }
-                                });
-                                let name;
-                                for (const vname of this.getVariableNames()) {
-                                    if ("${" + vname + "}" === attr.template) {
-                                        name = vname;
-                                        break;
+                                    if(node.attributes.value) {
+                                        const valueattr = node.attributes.value,
+                                            template = valueattr.template || valueattr.template.value;
+                                        if(template.startsWith("${") && template.endsWith("}")) {
+                                            const name = template.substring(2,template.length-1);
+                                            if(!name.includes(" ")) bindInput(node,name,this,value);
+                                        }
                                     }
-                                }
-                                if (name) bindInput(node, name, ctx);
+                                });
                             }
                             [...node.attributes].forEach((attr) => {
                                 if (attr.name === "value") return;
@@ -684,7 +694,7 @@ const {observe} = (() => {
                             }
                             if (reactive) {
                                 variable.reactive = true;
-                                this.vars[key] = Reactor(variable);
+                                this.vars[key] = Reactor(variable,this);
                             }
                             if (shared) {
                                 variable.shared = true;

@@ -3,13 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <title>Basic</title>
-    <template id="x-test">
+    <template id="x-test" name="joe" open="true" count=1 children='["mary"]' l-on:click="bump">
+        <span id="name">${name}</span>
+        <span id="open">${open}</span>
+        <span id="count">${count}</span>
+        <span id="children">${children}</span>
+        <span id="color">${color}</span>
+        <span id="checked">${checked}</span>
+        <span id="age">${age}</span>
+        <span id="hamburger">${hamburger}</span>
+
+        <input id="iuntyped" value="${iuntyped}">
+        <input id="itext" type="text" value="${itext}">
+        <input id="itel" type="tel" value="${itel}">
+        <input id="iemail" type="email" value="${iemail}">
+        <input id="iurl" type="url" value="${iurl}">
+        <input id="isearch" type="search" value="${isearch}">
+        <input id="iradio" type="radio" value="${iradio}">
+        <input id="icolor" type="color" value="${icolor}">
+        <input id="ipassword" type="password" value="${ipassword}">
+
+        <input id="inumber" type="number" value="${inumber}">
+        <input id="irange" type="range" value="${irange}">
+
+        <input id="idatetime" type="datetime" value="${idatetime}">
+
+        <input id="icheckbox" type="checkbox" value="${icheckbox}">
+
         <script type="lightview/module">
-            self.variables({color:string,checked:boolean,hamburger:Array},{exported,reactive});
+        debugger;
+            self.variables({name:string,open:boolean,count:number,children:Array},{imported,reactive});
+            self.variables({color:string,checked:boolean,age:number,hamburger:Array},{exported,reactive});
+            self.variables({counter:number},{reactive});
+            self.variables({myshare:number},{shared});
 
             color = "green";
             checked = true;
+            age = 27;
             hamburger = ["lettuce"];
+            counter = 0;
+            myshare = 1;
+
+            iuntyped = "test";
+            itext = "test";
+            itel = "test";
+            iemail = "test";
+            iurl = "test";
+            isearch = "test";
+            iradio = "test";
+            icolor = "test";
+            ipassword = "test";
+
+            inumber = 1;
+            irange = 1;
+
+            idatetime = new Date();
+
+            icheckbox = true;
+
+            self.bump = () => {
+                counter++;
+                };
         </script>
     </template>
     <script src="../lightview.js"></script>
@@ -18,6 +72,8 @@
     </script>
 </head>
 <body>
-<x-test id="test"></x-test>
+<p><x-test id="test"></x-test></p>
+
+<p><x-test id="test1"></x-test></p>
 </body>
 </html>
