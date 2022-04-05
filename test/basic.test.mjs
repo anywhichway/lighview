@@ -26,14 +26,14 @@ describe('Lightview', () => {
         });
         expect(result).toBe("green");
     });
-    test('color should be exported', async () => {
+    test('checked should be exported', async () => {
         const result = await page.evaluate(() => {
             const el = document.getElementById("test");
             return JSON.parse(el.getAttribute("checked"));
         });
         expect(result).toBe(true);
     });
-    test('color should be exported', async () => {
+    test('hamburger should be exported', async () => {
         const result = await page.evaluate(() => {
             const el = document.getElementById("test");
             return JSON.parse(el.getAttribute("hamburger"));
