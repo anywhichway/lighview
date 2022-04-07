@@ -30,6 +30,22 @@ const {observe} = (() => {
     let CURRENTOBSERVER;
     const parser = new DOMParser();
 
+    const templateSanitizer = (string) => {
+        return string.replace(/function\s+/g,"")
+            .replace(/function\(/g,"")
+            .replace(/=\s*>/g,"")
+            .replace(/(while|do|for|alert)\s*\(/g,"")
+            .replace(/console\.[a-zA-Z$]+\s*\(/g,"");
+    }
+    Lightview.sanitizeTemplate = templateSanitizer;
+
+    const escaper = document.createElement('textarea');
+    function escapeHTML(html) {
+        escaper.textContent = html;
+        return escaper.innerHTML;
+    }
+    Lightview.escapeHTML = escapeHTML;
+
     const addListener = (node, eventName, callback) => {
         node.addEventListener(eventName, callback); // just used to make code footprint smaller
     }
@@ -232,7 +248,7 @@ const {observe} = (() => {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === "attributes") {
-                    if (framed) debugger;
+                    //if (framed) debugger;
                     const name = mutation.attributeName,
                         target = mutation.target,
                         value = target.getAttribute(name);
@@ -296,12 +312,14 @@ const {observe} = (() => {
         }
         return nodes;
     }
-    const resolveNode = (node, component) => {
+    const resolveNode = (node, component,safe) => {
         if (node?.template) {
             try {
-                const value = Function("context", "with(context) { return `" + node.template + "` }")(component.varsProxy);
-                node.nodeValue = value === "null" || value === "undefined" ? "" : value;
+                let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(node?.template) + "` }")(component.varsProxy);
+                value = node.nodeType===Node.TEXT_NODE || !safe ? value : Lightview.escapeHTML(value);
+                node.nodeValue = value=="null" || value=="undefined" ? "" : value;
             } catch (e) {
+                console.warn(e);
                 if (!e.message.includes("defined")) throw e; // actually looking for undefined or not defined
             }
         }
@@ -324,8 +342,8 @@ const {observe} = (() => {
         if (["checkbox"].includes(inputType)) return "boolean";
         return "any";
     }
-    const _importAnchors = (node, component) => {
-        [...node.querySelectorAll('a[href][target^="#"]')].forEach((node) => {
+    const importAnchors = (node, component) => {
+        [...node.querySelectorAll('a[href$=".html"][target^="#"]')].forEach((node) => {
             node.removeEventListener("click", anchorHandler);
             addListener(node, "click", anchorHandler);
         })
@@ -370,16 +388,18 @@ const {observe} = (() => {
         }
     }
     let reserved = {
+        any: {value: "any",constant: true},
         boolean: {value: "boolean", constant: true},
         string: {value: "string", constant: true},
         number: {value: "number", constant: true},
+        object: {value: "object", constant: true},
         observed: {value: true, constant: true},
         reactive: {value: true, constant: true},
         shared: {value: true, constant: true},
         exported: {value: true, constant: true},
         imported: {value: true, constant: true}
     };
-    const createClass = (domElementNode, {observer, importAnchors, framed}) => {
+    const createClass = (domElementNode, {observer, framed}) => {
         const instances = new Set(),
             dom = domElementNode.tagName === "TEMPLATE"
                 ? domElementNode.content.cloneNode(true)
@@ -433,7 +453,7 @@ const {observe} = (() => {
                         })
                     });
                 [...dom.childNodes].forEach((child) => shadow.appendChild(child.cloneNode(true)));
-                if (importAnchors) _importAnchors(shadow, this);
+                importAnchors(shadow, this);
             }
 
             get siblings() {
@@ -491,7 +511,7 @@ const {observe} = (() => {
                                         const template = attr.template;
                                         if(/\$\{[a-zA-z_]+\}/g.test(template)) {
                                             const name = template.substring(2,template.length-1);
-                                            if(!name.includes(" ")) bindInput(node,name,this,value);
+                                            bindInput(node,name,this,value);
                                         }
                                     }
                                     if (eltype === "checkbox") {
@@ -523,7 +543,7 @@ const {observe} = (() => {
                                 });
                             }
                             [...node.attributes].forEach((attr) => {
-                                if (attr.name === "value") return;
+                                if (attr.name === "value" && attr.template) return;
                                 const {name, value} = attr;
                                 if (name === "type") {
                                     if (value === "radio") {
@@ -584,11 +604,13 @@ const {observe} = (() => {
                                             coerced = coerce(value, what === "each" ? Array : "object"),
                                             target = what === "each" ? coerced : Object[what](coerced),
                                             html = target.reduce((html, item, i, target) => {
-                                                return html += Function("context", "with(context) { return `" + node.template + "` }")({
-                                                    [vname]: item,
-                                                    [index]: i,
-                                                    [array]: target
-                                                })
+                                                return html += Function("vars","context", "with(vars) { with(context) { return `" + node.template + "` }}")(
+                                                    ctx.varsProxy,
+                                                    {
+                                                        [vname]: item,
+                                                        [index]: i,
+                                                        [array]: target
+                                                    })
                                             }, ""),
                                             parsed = parser.parseFromString(html, "text/html");
                                         if (!window.lightviewDebug) {
@@ -620,23 +642,23 @@ const {observe} = (() => {
                 //Object.defineProperty(this, "adoptedCallback", {configurable: true, writable: true, value});
             }
 
-            connected(value) {
-                this.connectedCallback = value;
+            connected(callback) {
+                this.connectedCallback = callback;
                 //Object.defineProperty(this, "connectedCallback", {configurable: true, writable: true, value});
             }
 
-            attributeChanged(value) {
-                this.attributeChangedCallback = value;
+            attributeChanged(callback) {
+                this.attributeChangedCallback = callback;
                 //Object.defineProperty(this, "attributeChangedCallback", {configurable: true, writable: true, value});
             }
 
-            disconnected(value) {
+            disconnected(callback) {
                 Object.defineProperty(this, "disconnectedCallback", {
                     configurable: true,
                     writable: true,
                     value: () => {
                         value();
-                        super.disconnectedCallback(value);
+                        super.disconnectedCallback(callback);
                     }
                 });
             }
@@ -647,19 +669,19 @@ const {observe} = (() => {
                 })
             }
 
-            setValue(name, value, {shared, coerceTo = typeof (value)} = {}) {
+            setValue(variableName, value, {coerceTo = typeof (value)} = {}) {
                 if (!this.isConnected) {
                     instances.delete(this);
                     return false;
                 }
-                let {type} = this.vars[name] || {};
+                let {type} = this.vars[variableName] || {};
                 if (type) {
                     value = coerce(value, type);
-                    if (this.varsProxy[name] !== value) {
-                        const variable = this.vars[name];
+                    if (this.varsProxy[variableName] !== value) {
+                        const variable = this.vars[variableName];
                         if (variable.shared) {
                             const event = new VariableEvent({
-                                variableName: name,
+                                variableName: variableName,
                                 value: value,
                                 oldValue: variable.value
                             });
@@ -667,12 +689,12 @@ const {observe} = (() => {
                             this.vars.postEvent.value("change", event);
                             if (event.defaultPrevented) variable.value = value;
                         } else {
-                            this.varsProxy[name] = value;
+                            this.varsProxy[variableName] = value;
                         }
                     }
                     return true;
                 }
-                this.vars[name] = {name, type: coerceTo, value: coerce(value, coerceTo)};
+                this.vars[variableName] = {name, type: coerceTo, value: coerce(value, coerceTo)};
                 return false;
             }
 
@@ -741,7 +763,7 @@ const {observe} = (() => {
             }
         }
     }
-    const createComponent = (name, node, {observer, importAnchors, framed} = {}) => {
+    const createComponent = (name, node, {framed,observer} = {}) => {
         let ctor = customElements.get(name);
         if (ctor) {
             if (framed && !ctor.lightviewFramed) {
@@ -751,38 +773,47 @@ const {observe} = (() => {
             }
             return ctor;
         }
-        ctor = createClass(node, {observer, importAnchors, framed});
+        ctor = createClass(node, {observer, framed});
         customElements.define(name, ctor);
+        Lightview.customElements.set(name,ctor);
         return ctor;
     }
+    Lightview.customElements = new Map();
     Lightview.createComponent = createComponent;
     //Object.defineProperty(Lightview, "createComponent", {writable: true, configurable: true, value: createComponent})
     const importLink = async (link, observer) => {
         const url = (new URL(link.getAttribute("href"), window.location.href)),
             as = link.getAttribute("as") || getNameFromPath(url.pathname);
-        if (url.hostname !== window.location.hostname) {
-            throw new URIError(`importLink:HTML imports must be from same domain: ${url.hostname}!=${location.hostname}`)
+        if (url.hostname !== window.location.hostname && !link.getAttribute("crossorigin")) {
+            throw new URIError(`importLink:HTML imports must be from same domain: ${url.hostname}!=${location.hostname} unless 'crossorigin' attribute is set.`)
         }
         if (!customElements.get(as)) {
             const html = await (await fetch(url.href)).text(),
                 dom = parser.parseFromString(html, "text/html"),
-                importAnchors = !!dom.head.querySelector('meta[name="l-importAnchors"]'),
-                unhide = !!dom.head.querySelector('meta[name="l-unhide"]');
+                unhide = !!dom.head.querySelector('meta[name="l-unhide"]'),
+                links = dom.head.querySelectorAll('link[href$=".html"][rel=module]');
+            for(const childlink of links) {
+                const href = childlink.getAttribute("href"),
+                    childurl = new URL(href,url.href);
+                childlink.setAttribute("href",childurl.href);
+                if(link.hasAttribute("crossorigin")) childlink.setAttribute("crossorigin",link.getAttribute("crossorigin"))
+                await importLink(childlink,observer);
+            }
             if (unhide) dom.body.removeAttribute("hidden");
-            createComponent(as, dom.body, {observer, importAnchors});
+            createComponent(as, dom.body, {observer});
         }
         return {as};
     }
     const importLinks = async () => {
         const observer = createObserver(document.body);
-        for (const link of [...document.querySelectorAll("link[href][rel=module]")]) {
-            await importLink(link);
+        for (const link of [...document.querySelectorAll(`link[href$=".html"][rel=module]`)]) {
+            await importLink(link,observer);
         }
     }
 
-    const bodyAsComponent = ({as = "x-body", unhide, importAnchors, framed} = {}) => {
+    const bodyAsComponent = ({as = "x-body", unhide, framed} = {}) => {
         const parent = document.body.parentElement;
-        createComponent(as, document.body, {importAnchors, framed});
+        createComponent(as, document.body, {framed});
         const component = document.createElement(as);
         parent.replaceChild(component, document.body);
         Object.defineProperty(document, "body", {
@@ -827,13 +858,12 @@ const {observe} = (() => {
     if (!domContentLoadedEvent) addListener(window, "DOMContentLoaded", (event) => domContentLoadedEvent = event);
     let OBSERVER;
     const loader = async (whenFramed) => {
-        if (!!document.querySelector('meta[name="l-importLinks"]')) await importLinks();
-        const importAnchors = !!document.querySelector('meta[name="l-importAnchors"]'),
-            unhide = !!document.querySelector('meta[name="l-unhide"]'),
+        await importLinks();
+        const unhide = !!document.querySelector('meta[name="l-unhide"]'),
             isolated = !!document.querySelector('meta[name="l-isolate"]'),
             enableFrames = !!document.querySelector('meta[name="l-enableFrames"]');
         if (whenFramed) {
-            whenFramed({unhide, importAnchors, isolated, enableFrames, framed: true});
+            whenFramed({unhide, isolated, enableFrames, framed: true});
             if (!isolated) {
                 postMessage.enabled = true;
                 addListener(window, "message", ({data}) => {
@@ -868,7 +898,7 @@ const {observe} = (() => {
                 postMessage({type: "DOMContentLoaded"})
             }
         } else if (url.searchParams.has("as")) {
-            bodyAsComponent({as: url.searchParams.get("as"), unhide, importAnchors});
+            bodyAsComponent({as: url.searchParams.get("as"), unhide});
         }
         if (enableFrames) {
             postMessage.enabled = true;
@@ -942,9 +972,9 @@ const {observe} = (() => {
             }
         }
     }
-    const whenFramed = (f, {isolated} = {}) => {
+    const whenFramed = (callback, {isolated} = {}) => {
         // loads for framed content
-        addListener(document, "DOMContentLoaded", (event) => loader(f));
+        addListener(document, "DOMContentLoaded", (event) => loader(callback));
     }
     Lightview.whenFramed = whenFramed;
     //Object.defineProperty(Lightview, "whenFramed", {configurable: true, writable: true, value: whenFramed});
@@ -956,5 +986,3 @@ const {observe} = (() => {
 
     return {observe}
 })();
-
-

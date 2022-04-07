@@ -1,7 +1,7 @@
 {
   "name": "lightview",
-  "version": "1.4.5b",
-  "description": "Small, simple, powerful web UI and micro front end creation ... imagine a blend of Svelte, React, Vue, Riot and more.",
+  "version": "1.4.7b",
+  "description": "Small, simple, powerful web UI and micro front end creation ... Great ideas from Svelte, React, Vue and Riot combined.",
   "main": "lightview.js",
   "scripts": {
     "test": "set NODE_OPTIONS=--experimental-vm-modules && jest ./test"
