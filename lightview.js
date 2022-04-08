@@ -291,6 +291,7 @@ const {observe} = (() => {
             nodes.push(root, ...getNodes(root.shadowRoot))
         } else {
             for (const node of root.childNodes) {
+                if(node.tagName==="SCRIPT") continue;
                 if (node.nodeType === Node.TEXT_NODE && node.nodeValue?.includes("${")) {
                     node.template ||= node.nodeValue;
                     nodes.push(node);
@@ -312,11 +313,14 @@ const {observe} = (() => {
         }
         return nodes;
     }
-    const resolveNode = (node, component,safe) => {
-        if (node?.template) {
+    const resolveNodeOrText = (node, component,safe) => {
+        const type = typeof(node),
+            template = type === "string" ? node.trim() : node.template;
+        if (template) {
             try {
-                let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(node?.template) + "` }")(component.varsProxy);
+                let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(template) + "` }")(component.varsProxy);
                 value = node.nodeType===Node.TEXT_NODE || !safe ? value : Lightview.escapeHTML(value);
+                if(type==="string") return value;
                 node.nodeValue = value=="null" || value=="undefined" ? "" : value;
             } catch (e) {
                 console.warn(e);
@@ -348,37 +352,41 @@ const {observe} = (() => {
             addListener(node, "click", anchorHandler);
         })
     }
-    const bindInput = (input, name, component,value) => {
+    const bound = new WeakSet();
+    const bindInput = (input, variableName, component,value) => {
+        if(bound.has(input)) return;
+        bound.add(input);
         const inputtype = input.tagName === "SELECT" || input.tagName === "TEXTAREA" ? "text" : input.getAttribute("type"),
             type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype),
             deflt = input.getAttribute("default");
         value ||= input.getAttribute("value");
-        let variable = component.vars[name] || {type};
+        let variable = component.vars[variableName] || {type};
         if (type !== variable.type) {
             if (variable.type === "any" || variable.type === "unknown") variable.type = type;
-            else throw new TypeError(`Attempt to bind <input name="${name}" type="${type}"> to variable ${name}:${variable.type}`)
+            else throw new TypeError(`Attempt to bind <input name="${variableName}" type="${type}"> to variable ${variableName}:${variable.type}`)
         }
-        component.variables({[name]: type});
-        component.setValue(name,value);
+        component.variables({[variableName]: type});
+        if(inputtype!=="radio") component.setValue(variableName,value);
         let eventname = "change";
         if (input.tagName !== "SELECT" && (!inputtype || input.tagName === "TEXTAREA" || ["text", "number", "tel", "email", "url", "search", "password"].includes(inputtype))) {
             eventname = "input";
         }
-        addListener(input, eventname, (event) => {
-            event.stopImmediatePropagation();
-            const target = event.target;
-            let value = target.value;
+        const listener = (event) => {
+            if(event) event.stopImmediatePropagation();
+            let value = input.value;
             if (inputtype === "checkbox") {
                 value = input.checked
-            } else if (target.tagName === "SELECT") {
-                if (target.hasAttribute("multiple")) {
-                    value = [...target.querySelectorAll("option")]
-                        .filter((option) => option.selected || resolveNode(option.attributes.value, component) == value || option.innerText == value)
+            } else if (input.tagName === "SELECT") {
+                if (input.hasAttribute("multiple")) {
+                    const varvalue = component.varsProxy[variableName];
+                    value = [...input.querySelectorAll("option")]
+                        .filter((option) => option.selected || resolveNodeOrText(option.attributes.value||option.innerText,component)===value)
                         .map((option) => option.getAttribute("value") || option.innerText);
                 }
             }
-            component.varsProxy[name] = coerce(value, type);
-        })
+            component.varsProxy[variableName] = coerce(value, type);
+        };
+        addListener(input, eventname, listener);
     }
     const tryParse = (value) => {
         try {
@@ -499,14 +507,14 @@ const {observe} = (() => {
                     const nodes = getNodes(ctx);
                     nodes.forEach((node) => {
                         if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
-                            render(!!node.template, () => resolveNode(node, this))
+                            render(!!node.template, () => resolveNodeOrText(node, this))
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
                             // resolve the value before all else;
                             const attr = node.attributes.value;
                             if (attr && attr.template) {
                                 render(!!attr.template, () => {
-                                    const value = resolveNode(attr, this),
-                                        eltype = resolveNode(node.attributes.type, ctx);
+                                    const value = resolveNodeOrText(attr, this),
+                                        eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx) : null;
                                     if(node.attributes.value) {
                                         const template = attr.template;
                                         if(/\$\{[a-zA-z_]+\}/g.test(template)) {
@@ -522,7 +530,7 @@ const {observe} = (() => {
                                             node.removeAttribute("checked");
                                             node.checked = false;
                                         }
-                                        const vname = resolveNode(node.attributes.name, ctx);
+                                        const vname = resolveNodeOrText(node.attributes.name, ctx);
                                         if (vname) ctx.setValue(vname, node.checked, {coerceTo: "boolean"});
                                     }
                                     if (node.tagName === "SELECT") {
@@ -530,11 +538,11 @@ const {observe} = (() => {
                                         if (node.hasAttribute("multiple")) values = coerce(value, Array);
                                         [...node.querySelectorAll("option")].forEach((option) => {
                                             if (option.hasAttribute("value")) {
-                                                if (values.includes(resolveNode(option.attributes.value, ctx))) {
+                                                if (values.includes(resolveNodeOrText(option.attributes.value, ctx))) {
                                                     option.setAttribute("selected", "");
                                                     option.selected = true;
                                                 }
-                                            } else if (option.innerText.trim() === value) {
+                                            } else if (values.includes(resolveNodeOrText(option.innerText,ctx))) {
                                                 option.setAttribute("selected", "");
                                                 option.selected = true;
                                             }
@@ -547,13 +555,13 @@ const {observe} = (() => {
                                 const {name, value} = attr;
                                 if (name === "type") {
                                     if (value === "radio") {
-                                        const name = resolveNode(node.attributes.name, ctx);
+                                        const name = resolveNodeOrText(node.attributes.name, ctx);
                                         for (const vname of this.getVariableNames()) {
                                             if (vname === name) {
                                                 render(true, () => {
-                                                    const name = resolveNode(node.attributes.name, ctx),
+                                                    const name = resolveNodeOrText(node.attributes.name, ctx),
                                                         varvalue = Function("context", "with(context) { return `${" + name + "}` }")(ctx.varsProxy);
-                                                    if (varvalue == resolveNode(node.attributes.value, ctx)) {
+                                                    if (varvalue == resolveNodeOrText(node.attributes.value, ctx)) {
                                                         node.setAttribute("checked", "");
                                                         node.checked = true;
                                                     } else {
@@ -572,9 +580,9 @@ const {observe} = (() => {
                                 if (type === "") { // name is :something
                                     render(!!attr.template, () => {
                                         const value = attr.value,
-                                            elvalue = resolveNode(node.attributes.value, ctx),
-                                            eltype = resolveNode(node.attributes.type, ctx),
-                                            elname = resolveNode(node.attributes.name, ctx);
+                                            elvalue = resolveNodeOrText(node.attributes.value, ctx),
+                                            eltype = resolveNodeOrText(node.attributes.type, ctx),
+                                            elname = resolveNodeOrText(node.attributes.name, ctx);
                                         if (params[0]) {
                                             if (value === "true") node.setAttribute(params[0], "")
                                             else node.removeAttribute(params[0]);
@@ -586,21 +594,21 @@ const {observe} = (() => {
                                 } else if (type === "l-on") {
                                     let listener;
                                     render(!!attr.template, () => {
-                                        const value = resolveNode(attr, this);
+                                        const value = resolveNodeOrText(attr, this);
                                         if (listener) node.removeEventListener(params[0], listener);
                                         listener = this[value] || window[value] || Function(value);
                                         addListener(node, params[0], listener);
                                     })
                                 } else if (type === "l-if") {
                                     render(!!attr.template, () => {
-                                        const value = resolveNode(attr, this);
+                                        const value = resolveNodeOrText(attr, this);
                                         node.style.setProperty("display", value === "true" ? "revert" : "none");
                                     })
                                 } else if (type === "l-for") {
                                     node.template ||= node.innerHTML;
                                     render(!!attr.template, () => {
                                         const [what = "each", vname = "item", index = "index", array = "array", after = false] = params,
-                                            value = resolveNode(attr, this),
+                                            value = resolveNodeOrText(attr, this),
                                             coerced = coerce(value, what === "each" ? Array : "object"),
                                             target = what === "each" ? coerced : Object[what](coerced),
                                             html = target.reduce((html, item, i, target) => {
@@ -626,7 +634,7 @@ const {observe} = (() => {
                                         }
                                     })
                                 } else if (attr.template) {
-                                    render(!!attr.template, () => resolveNode(attr, this));
+                                    render(!!attr.template, () => resolveNodeOrText(attr, this));
                                 }
                             })
                         }

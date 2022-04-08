@@ -1,21 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Scratch</title>
-    <script src="./lightview.js?as=x-body"></script>
+    <title>Form</title>
+    <script src="../lightview.js?as=x-body"></script>
+    <script>Lightview.whenFramed(({as,unhide,importAnchors,isolated,enableFrames}) => {
+        Lightview.bodyAsComponent({as,unhide,importAnchors,isolated,enableFrames});
+    })</script>
 </head>
-<body>
-<div style="margin:20px;padding:5px;border:1px;border-style:solid;border-color:${color}">
+
+<body style="height:fit-content;width:fit-content;display:flex;flex-direction:column;max-height:100%;overflow:auto;">
+<div style="margin:20px">
     <p>
         <input type="text" value="${color}">
+        <input type="checkbox" value="${checked}">
         <input type="radio" name="color" value="red">
         <input type="radio" name="color" value="yellow">
         <input type="radio" name="color" value="green">
         <select value="${color}">
             <option value="red">red</option>
             <option>yellow</option>
-            <option> green</option>
+            <option> green </option>
         </select>
     <div>Hamburger options:</div>
     <select value="${hamburger}" multiple>
@@ -24,7 +28,6 @@
         <option>cheese</option>
     </select>
     </p>
-    Expose: <input type="checkbox" value="${checked}">
     <p l-if="${checked}">
         Now you've done it. You've exposed me.
     </p>
@@ -42,13 +45,16 @@
     </p>
 </div>
 <script type="lightview/module">
-    self.variables({color:string,checked:boolean,hamburger:Array},{reactive});
-
+    self.variables({
+      color: string,
+      checked: boolean,
+      hamburger: Array
+    }, {
+      reactive
+    });
     color = "green";
     checked = true;
     hamburger = ["lettuce"];
-
-
     // demo instrumentation
     const variableValues = () => {
       const el = self.getElementById("variables");
@@ -63,7 +69,7 @@
     addEventListener("change", () => {
       variableValues()
     });
-
-</script>
+  </script>
 </body>
+
 </html>
