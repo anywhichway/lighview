@@ -1,36 +1,30 @@
 <!DOCTYPE html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Remote</title>
-    <link type="module" src="">
-    <meta name="l-enableFrames">
-    <script src="../lightview.js"></script>
+  <script src="../lightview.js?as=x-body"></script>
 </head>
-
 <body>
-<p>
-   The component below is loaded from an alternate domain and running in a child iframe.
-    The logging console is below the component in this frame.
-</p>
-<iframe id="myframe" src="https://lightview.dev/remoteform.html?id=myframe"></iframe>
-<div id="console" style="max-height:250px;scroll:auto"></div>
-<script>
-    const mutationCallback = (mutationsList) => {
-        const console = document.getElementById("console");
-        for (const {target,attributeName,oldValue} of mutationsList) {
-            const line = document.createElement("div"),
-                event = {attributeName,oldValue,value:target.getAttribute(attributeName)};
-            line.innerText = JSON.stringify(event);
-            console.appendChild(line);
-        }
-    };
-    const observer = new MutationObserver(mutationCallback),
-        iframe = document.getElementById("myframe");
-    observer.observe(iframe, { attributes:true, attributeOldValue: true });
-    iframe.addEventListener("DOMContentLoaded",(event) => {
-        console.log(event);
-    });
+
+<input id="myRemote" type=text" value="${JSON.stringify(myRemote)}" size="${JSON.stringify(myRemote).length}"><br>
+<button l-on:click="patch">Patch</button><br>
+<button l-on:click="replace">Replace</button>
+
+
+<script type="lightview/module">
+self.variables({myRemote:object},{reactive,remote:"http://localhost:8000/remote.json"});
+
+await myRemote; // must await remotes before the first time they are used, e.g. before HTML is rendered
+
+self.patch = () => {
+  const json = JSON.parse(document.body.getElementById("myRemote").value);
+  Object.assign(myRemote,json);
+};
+
+self.replace = () => {
+  myRemote = JSON.parse(document.body.getElementById("myRemote").value);
+};
 </script>
 </body>
-
 </html>

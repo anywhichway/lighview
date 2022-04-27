@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Remote</title>
+    <link type="module" src="">
+    <meta name="l-enableFrames">
+    <script src="../lightview.js"></script>
+</head>
+
+<body>
+<p>
+   The component below is loaded from an alternate domain and running in a child iframe.
+    The logging console is below the component in this frame.
+</p>
+<iframe id="myframe" src="https://lightview.dev/remoteform.html?id=myframe"></iframe>
+<div id="console" style="max-height:250px;scroll:auto"></div>
+<script>
+    const mutationCallback = (mutationsList) => {
+        const console = document.getElementById("console");
+        for (const {target,attributeName,oldValue} of mutationsList) {
+            const line = document.createElement("div"),
+                event = {attributeName,oldValue,value:target.getAttribute(attributeName)};
+            line.innerText = JSON.stringify(event);
+            console.appendChild(line);
+        }
+    };
+    const observer = new MutationObserver(mutationCallback),
+        iframe = document.getElementById("myframe");
+    observer.observe(iframe, { attributes:true, attributeOldValue: true });
+    iframe.addEventListener("DOMContentLoaded",(event) => {
+        console.log(event);
+    });
+</script>
+</body>
+
+</html>
