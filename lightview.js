@@ -31,19 +31,21 @@ const {observe} = (() => {
     const parser = new DOMParser();
 
     const templateSanitizer = (string) => {
-        return string.replace(/function\s+/g,"")
-            .replace(/function\(/g,"")
-            .replace(/=\s*>/g,"")
-            .replace(/(while|do|for|alert)\s*\(/g,"")
-            .replace(/console\.[a-zA-Z$]+\s*\(/g,"");
+        return string.replace(/function\s+/g, "")
+            .replace(/function\(/g, "")
+            .replace(/=\s*>/g, "")
+            .replace(/(while|do|for|alert)\s*\(/g, "")
+            .replace(/console\.[a-zA-Z$]+\s*\(/g, "");
     }
     Lightview.sanitizeTemplate = templateSanitizer;
 
     const escaper = document.createElement('textarea');
+
     function escapeHTML(html) {
         escaper.textContent = html;
         return escaper.innerHTML;
     }
+
     Lightview.escapeHTML = escapeHTML;
 
     const addListener = (node, eventName, callback) => {
@@ -67,19 +69,19 @@ const {observe} = (() => {
         if (name.includes("-")) return name;
         return "l-" + name;
     }
-    const observe = (f, thisArg, argsList = []) => {
-        function observer(...args) {
+    const observe = async (f, thisArg, argsList = []) => {
+        const observer = async (...args) => {
+            if(observer.cancelled) return;
             CURRENTOBSERVER = observer;
             try {
-                f.call(thisArg || this, ...argsList, ...args);
+                await f.call(thisArg || this, ...argsList, ...args);
             } catch (e) {
 
             }
             CURRENTOBSERVER = null;
         }
-
         observer.cancel = () => observer.cancelled = true;
-        observer();
+        await observer();
         return observer;
     }
     const coerce = (value, toType) => {
@@ -89,7 +91,7 @@ const {observe} = (() => {
         if (toType === "number") return parseFloat(value + "");
         if (toType === "boolean") {
             if (["on", "checked", "selected"].includes(value)) return true;
-            if(value==null || value==="") return false;
+            if (value == null || value === "") return false;
             try {
                 const parsed = JSON.parse(value + "");
                 if (typeof (parsed) === "boolean") return parsed;
@@ -112,10 +114,10 @@ const {observe} = (() => {
                         if (instance instanceof Array) {
                             let parsed = tryParse(value.startsWith("[") ? value : `[${value}]`);
                             if (!Array.isArray(parsed)) {
-                                if(value.includes(",")) parsed = value.split(",");
+                                if (value.includes(",")) parsed = value.split(",");
                                 else {
                                     parsed = tryParse(`["${value}"]`);
-                                    if(!Array.isArray(parsed) || parsed[0]!==value && parsed.length!==1) parsed = null;
+                                    if (!Array.isArray(parsed) || parsed[0] !== value && parsed.length !== 1) parsed = null;
                                 }
                             }
                             if (!Array.isArray(parsed)) {
@@ -144,14 +146,16 @@ const {observe} = (() => {
         }
         throw new TypeError(`Unable to coerce ${value} to ${toType}`)
     }
-    const Reactor = (value) => {
-        if (value && typeof (value) === "object") {
-            if (value.__isReactor__) return value;
+    const Reactor = (data) => {
+        if (data && typeof (data) === "object") {
+            if (data.__isReactor__) return data;
             const childReactors = [],
                 dependents = {},
-                proxy = new Proxy(value, {
+                proxy = new Proxy(data, {
                     get(target, property) {
                         if (property === "__isReactor__") return true;
+                        if(property=== "__dependents__") return dependents;
+                        if(property=== "__reactorProxyTarget__") return data;
                         if (target instanceof Array) {
                             if (property === "toJSON") return function toJSON() {
                                 return [...target];
@@ -161,14 +165,15 @@ const {observe} = (() => {
                             }
                         }
                         let value = target[property];
+                        if(value===undefined) return;
                         const type = typeof (value);
                         if (CURRENTOBSERVER && typeof (property) !== "symbol" && type !== "function") {
                             const observers = dependents[property] ||= new Set();
                             observers.add(CURRENTOBSERVER)
                         }
                         if (childReactors.includes(value) || (value && type !== "object") || typeof (property) === "symbol") {
-                            // Dated must be bound to work with proxies
-                            if (type === "function" && [Date].includes(value)) value = value.bind(target)
+                            // Dates and Promises must be bound to work with proxies
+                            if (type === "function" && ([Date].includes(value) || property==="then")) value = value.bind(target)
                             return value;
                         }
                         if (value && type === "object") {
@@ -178,8 +183,14 @@ const {observe} = (() => {
                         target[property] = value;
                         return value;
                     },
-                    set(target, property, value) {
+                    async set(target, property, value) {
+                        if(target instanceof Promise) {
+                            console.warn(`Setting ${property} = ${value} on a Promise in Reactor`);
+                        }
                         const type = typeof (value);
+                        if(value && type==="object" && value instanceof Promise) {
+                            value = await value;
+                        }
                         if (target[property] !== value) {
                             if (value && type === "object") {
                                 value = Reactor(value);
@@ -197,7 +208,7 @@ const {observe} = (() => {
                 });
             return proxy;
         }
-        return value;
+        return data;
     }
 
     class VariableEvent {
@@ -213,7 +224,8 @@ const {observe} = (() => {
                 if (typeof (value) === "function") return value.bind(target);
                 return value;
             },
-            set(target, property, newValue) {
+            async set(target, property, newValue) {
+                if(newValue && typeof(newValue)==="object" && newValue instanceof Promise) newValue = await newValue;
                 const event = new VariableEvent({variableName: property, value: newValue});
                 if (target[property] === undefined) {
                     target[property] = {type: "any", value: newValue}; // should we allow this,  do first to prevent loops
@@ -221,7 +233,7 @@ const {observe} = (() => {
                     if (event.defaultPrevented) delete target[property].value;
                     return true;
                 }
-                const {type, value, shared, exported, constant, reactive} = target[property];
+                const {type, value, shared, exported, constant, reactive, remote} = target[property];
                 if (constant) throw new TypeError(`${property}:${type} is a constant`);
                 const newtype = typeof (newValue),
                     typetype = typeof (type);
@@ -230,7 +242,11 @@ const {observe} = (() => {
                         event.oldValue = value;
                         target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
                         target.postEvent.value("change", event);
-                        if (event.defaultPrevented) target[property].value = value;
+                        if (event.defaultPrevented) {
+                            target[property].value = value;
+                        } else if(remote) {
+                            handleRemote({variable:target[property],remote,reactive},true);
+                        }
                     }
                     return true;
                 }
@@ -291,7 +307,7 @@ const {observe} = (() => {
             nodes.push(root, ...getNodes(root.shadowRoot))
         } else {
             for (const node of root.childNodes) {
-                if(node.tagName==="SCRIPT") continue;
+                if (node.tagName === "SCRIPT") continue;
                 if (node.nodeType === Node.TEXT_NODE && node.nodeValue?.includes("${")) {
                     node.template ||= node.nodeValue;
                     nodes.push(node);
@@ -313,15 +329,16 @@ const {observe} = (() => {
         }
         return nodes;
     }
-    const resolveNodeOrText = (node, component,safe) => {
-        const type = typeof(node),
+    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    const resolveNodeOrText = (node, component, safe) => {
+        const type = typeof (node),
             template = type === "string" ? node.trim() : node.template;
         if (template) {
             try {
                 let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(template) + "` }")(component.varsProxy);
-                value = node.nodeType===Node.TEXT_NODE || !safe ? value : Lightview.escapeHTML(value);
-                if(type==="string") return value;
-                node.nodeValue = value=="null" || value=="undefined" ? "" : value;
+                value = node.nodeType === Node.TEXT_NODE || !safe ? value : Lightview.escapeHTML(value);
+                if (type === "string") return value;
+                node.nodeValue = value == "null" || value == "undefined" ? "" : value;
             } catch (e) {
                 console.warn(e);
                 if (!e.message.includes("defined")) throw e; // actually looking for undefined or not defined
@@ -329,7 +346,7 @@ const {observe} = (() => {
         }
         return node?.nodeValue;
     }
-    const render = (hasTemplate, render) => {
+    const render =  (hasTemplate, render) => {
         let observer;
         if (hasTemplate) {
             if (observer) observer.cancel();
@@ -353,8 +370,8 @@ const {observe} = (() => {
         })
     }
     const bound = new WeakSet();
-    const bindInput = (input, variableName, component,value) => {
-        if(bound.has(input)) return;
+    const bindInput = (input, variableName, component, value) => {
+        if (bound.has(input)) return;
         bound.add(input);
         const inputtype = input.tagName === "SELECT" || input.tagName === "TEXTAREA" ? "text" : input.getAttribute("type"),
             type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype),
@@ -366,13 +383,13 @@ const {observe} = (() => {
             else throw new TypeError(`Attempt to bind <input name="${variableName}" type="${type}"> to variable ${variableName}:${variable.type}`)
         }
         component.variables({[variableName]: type});
-        if(inputtype!=="radio") component.setValue(variableName,value);
+        if (inputtype !== "radio") component.setValue(variableName, value);
         let eventname = "change";
         if (input.tagName !== "SELECT" && (!inputtype || input.tagName === "TEXTAREA" || ["text", "number", "tel", "email", "url", "search", "password"].includes(inputtype))) {
             eventname = "input";
         }
         const listener = (event) => {
-            if(event) event.stopImmediatePropagation();
+            if (event) event.stopImmediatePropagation();
             let value = input.value;
             if (inputtype === "checkbox") {
                 value = input.checked
@@ -380,7 +397,7 @@ const {observe} = (() => {
                 if (input.hasAttribute("multiple")) {
                     const varvalue = component.varsProxy[variableName];
                     value = [...input.querySelectorAll("option")]
-                        .filter((option) => option.selected || resolveNodeOrText(option.attributes.value||option.innerText,component)===value)
+                        .filter((option) => option.selected || resolveNodeOrText(option.attributes.value || option.innerText, component) === value) //todo make sync comopat
                         .map((option) => option.getAttribute("value") || option.innerText);
                 }
             }
@@ -396,7 +413,7 @@ const {observe} = (() => {
         }
     }
     let reserved = {
-        any: {value: "any",constant: true},
+        any: {value: "any", constant: true},
         boolean: {value: "boolean", constant: true},
         string: {value: "string", constant: true},
         number: {value: "number", constant: true},
@@ -405,7 +422,8 @@ const {observe} = (() => {
         reactive: {value: true, constant: true},
         shared: {value: true, constant: true},
         exported: {value: true, constant: true},
-        imported: {value: true, constant: true}
+        imported: {value: true, constant: true},
+        remote: {}
     };
     const createClass = (domElementNode, {observer, framed}) => {
         const instances = new Set(),
@@ -492,7 +510,7 @@ const {observe} = (() => {
                     }
                     currentScript.classList.remove("lightview");
                     const text = script.innerHTML.replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1").replaceAll(/\r?\n/g, "");
-                    currentScript.innerHTML = `Function('if(window["${scriptid}"]?.ctx) { with(window["${scriptid}"].ctx) { ${text}; }  window["${scriptid}"](); }')(); `;
+                    currentScript.innerHTML = `Object.getPrototypeOf(async function(){}).constructor('if(window["${scriptid}"]?.ctx) { with(window["${scriptid}"].ctx) { ${text}; }  window["${scriptid}"](); }')(); `;
                     let resolver;
                     promises.push(new Promise((resolve) => resolver = resolve));
                     window[scriptid] = () => {
@@ -507,19 +525,19 @@ const {observe} = (() => {
                     const nodes = getNodes(ctx);
                     nodes.forEach((node) => {
                         if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
-                            render(!!node.template, () => resolveNodeOrText(node, this))
+                            render(!!node.template,  () => resolveNodeOrText(node, this))
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
                             // resolve the value before all else;
                             const attr = node.attributes.value;
                             if (attr && attr.template) {
-                                render(!!attr.template, () => {
+                                render(!!attr.template,  () => {
                                     const value = resolveNodeOrText(attr, this),
                                         eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx) : null;
-                                    if(node.attributes.value) {
+                                    if (node.attributes.value) {
                                         const template = attr.template;
-                                        if(/\$\{[a-zA-z_]+\}/g.test(template)) {
-                                            const name = template.substring(2,template.length-1);
-                                            bindInput(node,name,this,value);
+                                        if (/\$\{[a-zA-z_]+\}/g.test(template)) {
+                                            const name = template.substring(2, template.length - 1);
+                                            bindInput(node, name, this, value);
                                         }
                                     }
                                     if (eltype === "checkbox") {
@@ -536,13 +554,13 @@ const {observe} = (() => {
                                     if (node.tagName === "SELECT") {
                                         let values = [value];
                                         if (node.hasAttribute("multiple")) values = coerce(value, Array);
-                                        [...node.querySelectorAll("option")].forEach((option) => {
+                                        [...node.querySelectorAll("option")].forEach(async (option) => {
                                             if (option.hasAttribute("value")) {
                                                 if (values.includes(resolveNodeOrText(option.attributes.value, ctx))) {
                                                     option.setAttribute("selected", "");
                                                     option.selected = true;
                                                 }
-                                            } else if (values.includes(resolveNodeOrText(option.innerText,ctx))) {
+                                            } else if (values.includes(resolveNodeOrText(option.innerText, ctx))) {
                                                 option.setAttribute("selected", "");
                                                 option.selected = true;
                                             }
@@ -550,7 +568,7 @@ const {observe} = (() => {
                                     }
                                 });
                             }
-                            [...node.attributes].forEach((attr) => {
+                            [...node.attributes].forEach(async (attr) => {
                                 if (attr.name === "value" && attr.template) return;
                                 const {name, value} = attr;
                                 if (name === "type") {
@@ -558,9 +576,9 @@ const {observe} = (() => {
                                         const name = resolveNodeOrText(node.attributes.name, ctx);
                                         for (const vname of this.getVariableNames()) {
                                             if (vname === name) {
-                                                render(true, () => {
+                                                render(true,  () => {
                                                     const name = resolveNodeOrText(node.attributes.name, ctx),
-                                                        varvalue = Function("context", "with(context) { return `${" + name + "}` }")(ctx.varsProxy);
+                                                        varvalue =  Function("context", "with(context) { return `${" + name + "}` }")(ctx.varsProxy);
                                                     if (varvalue == resolveNodeOrText(node.attributes.value, ctx)) {
                                                         node.setAttribute("checked", "");
                                                         node.checked = true;
@@ -578,7 +596,7 @@ const {observe} = (() => {
 
                                 const [type, ...params] = name.split(":");
                                 if (type === "") { // name is :something
-                                    render(!!attr.template, () => {
+                                    render(!!attr.template,  () => {
                                         const value = attr.value,
                                             elvalue = resolveNodeOrText(node.attributes.value, ctx),
                                             eltype = resolveNodeOrText(node.attributes.type, ctx),
@@ -593,26 +611,26 @@ const {observe} = (() => {
                                     })
                                 } else if (type === "l-on") {
                                     let listener;
-                                    render(!!attr.template, () => {
+                                    render(!!attr.template,  () => {
                                         const value = resolveNodeOrText(attr, this);
                                         if (listener) node.removeEventListener(params[0], listener);
                                         listener = this[value] || window[value] || Function(value);
                                         addListener(node, params[0], listener);
                                     })
                                 } else if (type === "l-if") {
-                                    render(!!attr.template, () => {
+                                    render(!!attr.template,  () => {
                                         const value = resolveNodeOrText(attr, this);
                                         node.style.setProperty("display", value === "true" ? "revert" : "none");
                                     })
                                 } else if (type === "l-for") {
                                     node.template ||= node.innerHTML;
-                                    render(!!attr.template, () => {
+                                    render(!!attr.template,  () => {
                                         const [what = "each", vname = "item", index = "index", array = "array", after = false] = params,
                                             value = resolveNodeOrText(attr, this),
                                             coerced = coerce(value, what === "each" ? Array : "object"),
                                             target = what === "each" ? coerced : Object[what](coerced),
-                                            html = target.reduce((html, item, i, target) => {
-                                                return html += Function("vars","context", "with(vars) { with(context) { return `" + node.template + "` }}")(
+                                            html = target.reduce( (html, item, i, target) => {
+                                                return html += Function("vars", "context", "with(vars) { with(context) { return `" + node.template + "` }}")(
                                                     ctx.varsProxy,
                                                     {
                                                         [vname]: item,
@@ -634,7 +652,7 @@ const {observe} = (() => {
                                         }
                                     })
                                 } else if (attr.template) {
-                                    render(!!attr.template, () => resolveNodeOrText(attr, this));
+                                    render(!!attr.template,  () => resolveNodeOrText(attr, this));
                                 }
                             })
                         }
@@ -710,7 +728,7 @@ const {observe} = (() => {
                 return this.vars[variableName]?.value;
             }
 
-            variables(variables, {observed, reactive, shared, exported, imported} = {}) { // options = {observed,reactive,shared,exported,imported}
+            variables(variables, {observed, reactive, shared, exported, imported, remote} = {}) { // options = {observed,reactive,shared,exported,imported}
                 const addEventListener = this.varsProxy.addEventListener;
                 if (variables !== undefined) {
                     Object.entries(variables)
@@ -743,6 +761,10 @@ const {observe} = (() => {
                                     else setComponentAttribute(this, variableName, value);
                                 })
                             }
+                            if (remote) {
+                                variable.remote = remote;
+                                handleRemote({variable, remote, reactive});
+                            }
                         });
                 }
                 return Object.entries(this.vars)
@@ -771,7 +793,136 @@ const {observe} = (() => {
             }
         }
     }
-    const createComponent = (name, node, {framed,observer} = {}) => {
+
+    const remoteProxy = ({json, variable,remote, reactive}) => {
+        const type = typeof (remote);
+        return new Proxy(json, {
+            get(target,property) {
+                if(property==="__remoteProxytarget__") return json;
+                return target[property];
+            },
+            async set(target, property, value) {
+                if(value && typeof(value)==="object" && value instanceof Promise) value = await value;
+                const oldValue = target[property];
+                if (oldValue !== value) {
+                    let remotevalue;
+                    if (type === "string") {
+                        const href = new URL(remote,window.location.href).href;
+                        remotevalue = patch({target,property,value,oldValue},href);
+                    } else if(remote && type==="object") {
+                        let href;
+                        if(remote.path) href = new URL(remote.path,window.location.href).href;
+                        if(!remote.patch) {
+                            if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
+                            remote.patch = patch;
+                        }
+                        remotevalue = remote.patch({target,property,value,oldValue},href);
+                    }
+                    if(remotevalue) {
+                        await remotevalue.then((newjson) => {
+                            if (newjson && typeof (newjson) === "object" && reactive) {
+                                const target = variable.value?.__reactorProxyTarget__ ? json : variable.value;
+                                Object.entries(newjson).forEach(([key,newValue]) => {
+                                    if(target[key]!==newValue) {
+                                        target[key] = newValue;
+                                    }
+                                })
+                                Object.keys(target).forEach((key) => {
+                                    if(!(key in newjson)) {
+                                        delete target[key];
+                                    }
+                                });
+                                if(variable.value?.__reactorProxyTarget__) {
+                                    const dependents = variable.value.__dependents__,
+                                        observers = dependents[property] || [];
+                                    [...observers].forEach((f) => {
+                                        if (f.cancelled) dependents[property].delete(f);
+                                        else f();
+                                    })
+                                }
+                            } else {
+                                variable.value = json;
+                            }
+                        })
+                    }
+                }
+                return true;
+            }
+        })
+    }
+
+    const patch = ({target,property,value,oldValue},href) => {
+        return fetch(href, {
+            method: "PATCH",
+            body: JSON.stringify({property,value,oldValue}),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        }).then((response) => {
+            if (response.status < 400) return response.json();
+        })
+    }
+
+    const get = ({variable,remote,reactive},path) => {
+        return fetch(path)
+            .then((response) => {
+                if (response.status < 400) return response.json();
+            })
+    }
+
+    const put = ({variable,remote,reactive},href) => {
+        return fetch(href, {
+            method: "PUT",
+            body: JSON.stringify(variable.value),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        }).then((response) => {
+            if (response.status === 200) {
+                return response.json();
+            }
+        })
+    }
+
+    const handleRemote = async ({variable, remote, reactive},doput) => {
+        const type = typeof (remote);
+        let value;
+        if (type === "string") {
+            const href = new URL(remote,window.location.href).href;
+            value = (doput
+                ? put({variable, remote, reactive},href)
+                : get({variable, remote, reactive},href));
+            if(variable.value===undefined) variable.value = value;
+        } else if (remote && type === "object") {
+            let href;
+            if(remote.path) href = new URL(remote.path,window.location.href).href;
+            if(!remote.get || !remote.put) {
+                if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
+                if(!remote.get) remote.get = get;
+                if(!remote.put) remote.put = put;
+            }
+            value = (doput
+                ? remote.put({variable, remote, reactive},href)
+                : remote.get({variable, remote, reactive},href));
+            if(remote.ttl && !doput && !remote.intervalId) {
+                remote.intervalId = setInterval(async () => {
+                    await handleRemote({variable, remote, reactive});
+                })
+            }
+            if(variable.value===undefined) variable.value = value;
+        }
+        if(value) {
+            variable.value = await value.then((json) => {
+                if (json && typeof (json) === "object" && reactive) {
+                    return remoteProxy({json, variable,remote, reactive})
+                } else {
+                   return json;
+                }
+            })
+        }
+    }
+
+    const createComponent = (name, node, {framed, observer} = {}) => {
         let ctor = customElements.get(name);
         if (ctor) {
             if (framed && !ctor.lightviewFramed) {
@@ -783,7 +934,7 @@ const {observe} = (() => {
         }
         ctor = createClass(node, {observer, framed});
         customElements.define(name, ctor);
-        Lightview.customElements.set(name,ctor);
+        Lightview.customElements.set(name, ctor);
         return ctor;
     }
     Lightview.customElements = new Map();
@@ -800,12 +951,12 @@ const {observe} = (() => {
                 dom = parser.parseFromString(html, "text/html"),
                 unhide = !!dom.head.querySelector('meta[name="l-unhide"]'),
                 links = dom.head.querySelectorAll('link[href$=".html"][rel=module]');
-            for(const childlink of links) {
+            for (const childlink of links) {
                 const href = childlink.getAttribute("href"),
-                    childurl = new URL(href,url.href);
-                childlink.setAttribute("href",childurl.href);
-                if(link.hasAttribute("crossorigin")) childlink.setAttribute("crossorigin",link.getAttribute("crossorigin"))
-                await importLink(childlink,observer);
+                    childurl = new URL(href, url.href);
+                childlink.setAttribute("href", childurl.href);
+                if (link.hasAttribute("crossorigin")) childlink.setAttribute("crossorigin", link.getAttribute("crossorigin"))
+                await importLink(childlink, observer);
             }
             if (unhide) dom.body.removeAttribute("hidden");
             createComponent(as, dom.body, {observer});
@@ -815,7 +966,7 @@ const {observe} = (() => {
     const importLinks = async () => {
         const observer = createObserver(document.body);
         for (const link of [...document.querySelectorAll(`link[href$=".html"][rel=module]`)]) {
-            await importLink(link,observer);
+            await importLink(link, observer);
         }
     }
 
@@ -985,7 +1136,7 @@ const {observe} = (() => {
         addListener(document, "DOMContentLoaded", (event) => loader(callback));
     }
     Lightview.whenFramed = whenFramed;
-    //Object.defineProperty(Lightview, "whenFramed", {configurable: true, writable: true, value: whenFramed});
+
     if (window.location === window.parent.location || !(window.parent instanceof Window) || window.parent !== window) {
         // loads for unframed content
         // CodePen mucks with window.parent
