@@ -13,7 +13,9 @@
 
 
 <script type="lightview/module">
-self.variables({myRemote:"object"},{reactive,remote:"http://localhost:8000/remote.json"});
+const {remote} = await import("../types.js");
+
+self.variables({myRemote:"object"},{reactive,remote:remote("http://localhost:8000/remote.json")});
 
 await myRemote; // must await remotes before the first time they are used, e.g. before HTML is rendered
 

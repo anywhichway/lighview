@@ -252,7 +252,7 @@ const {observe} = (() => {
                         if (event.defaultPrevented) {
                             target[property].value = value;
                         } else if(remote) {
-                            handleRemote({variable,remote,reactive},true);
+                            remote.handleRemote({variable,config:remote.config,reactive},true);
                         }
                     }
                     return true;
@@ -357,15 +357,6 @@ const {observe} = (() => {
         }
         return node?.nodeValue;
     }
-    const render =  (hasTemplate, render) => {
-        let observer;
-        if (hasTemplate) {
-            if (observer) observer.cancel();
-            observer = observe(render)
-        } else {
-            render();
-        }
-    }
     const inputTypeToType = (inputType) => {
         if (!inputType) return "any"
         if (["text", "tel", "email", "url", "search", "radio", "color", "password"].includes(inputType)) return "string";
@@ -430,8 +421,7 @@ const {observe} = (() => {
         reactive: {value: true, constant: true},
         shared: {value: true, constant: true},
         exported: {value: true, constant: true},
-        imported: {value: true, constant: true},
-        remote: {}
+        imported: {value: true, constant: true}
     };
     const createClass = (domElementNode, {observer, framed}) => {
         const instances = new Set(),
@@ -475,7 +465,7 @@ const {observe} = (() => {
                         constant: true
                     },
                     postEvent: {
-                        value: (eventName, event={}) => {
+                        value: (eventName, event = {}) => {
                             //event = {...event}
                             event.type = eventName;
                             event.target = currentComponent;
@@ -558,13 +548,12 @@ const {observe} = (() => {
                     const nodes = getNodes(ctx);
                     nodes.forEach((node) => {
                         if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
-                            render(!!node.template,  () => resolveNodeOrText(node, this))
+                           observe(() => resolveNodeOrText(node, this));
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
                             // resolve the value before all else;
                             const attr = node.attributes.value,
                                 template = attr?.template;
                             if (attr && template) {
-                                //render(!!template,  () => {
                                     let value = resolveNodeOrText(attr, this),
                                         eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx) : null;
                                     const template = attr.template;
@@ -612,22 +601,22 @@ const {observe} = (() => {
                                 const {name, value} = attr,
                                     vname = node.attributes.name?.value;
                                 if (name === "type" && value=="radio" && vname) {
-                                        bindInput(node, vname, this);
-                                        render(true,  () => {
-                                            const varvalue =  Function("context", "with(context) { return `${" + vname + "}` }")(ctx.varsProxy);
-                                            if (node.attributes.value.value == varvalue) {
-                                                node.setAttribute("checked", "");
-                                                node.checked = true;
-                                            } else {
-                                                node.removeAttribute("checked");
-                                                node.checked = false;
-                                            }
-                                        });
+                                    bindInput(node, vname, this);
+                                   observe(() => {
+                                        const varvalue =  Function("context", "with(context) { return `${" + vname + "}` }")(ctx.varsProxy);
+                                        if (node.attributes.value.value == varvalue) {
+                                            node.setAttribute("checked", "");
+                                            node.checked = true;
+                                        } else {
+                                            node.removeAttribute("checked");
+                                            node.checked = false;
+                                        }
+                                    });
                                 }
 
                                 const [type, ...params] = name.split(":");
                                 if (type === "") { // name is :something
-                                    render(!!attr.template,  () => {
+                                    observe(() => {
                                         const value = attr.value;
                                         if (params[0]) {
                                             if (value === "true") node.setAttribute(params[0], "")
@@ -643,20 +632,20 @@ const {observe} = (() => {
                                     })
                                 } else if (type === "l-on") {
                                     let listener;
-                                    render(!!attr.template,  () => {
+                                    observe(() => {
                                         const value = resolveNodeOrText(attr, this);
                                         if (listener) node.removeEventListener(params[0], listener);
                                         listener = this[value] || window[value] || Function(value);
                                         addListener(node, params[0], listener);
                                     })
                                 } else if (type === "l-if") {
-                                    render(!!attr.template,  () => {
+                                    observe(() => {
                                         const value = resolveNodeOrText(attr, this);
                                         node.style.setProperty("display", value === "true" ? "revert" : "none");
                                     })
                                 } else if (type === "l-for") {
                                     node.template ||= node.innerHTML;
-                                    render(!!attr.template,  () => {
+                                    observe(() => {
                                         const [what = "each", vname = "item", index = "index", array = "array", after = false] = params,
                                             value = resolveNodeOrText(attr, this),
                                             coerced = coerce(value, what === "each" ? Array : "object"),
@@ -683,8 +672,8 @@ const {observe} = (() => {
                                             else node.appendChild(parsed.body.firstChild);
                                         }
                                     })
-                                } else {
-                                    render(!!attr.template,  () => {
+                                } else if(attr.template) {
+                                    observe(() => {
                                         resolveNodeOrText(attr, this);
                                     })
                                 }
@@ -713,9 +702,8 @@ const {observe} = (() => {
             }
 
             getVariableNames() {
-                return Object.keys(this.vars).filter((name) => {
-                    return !(name in reserved) && !["self", "addEventListener", "postEvent"].includes(name)
-                })
+                return Object.keys(this.vars)
+                    .filter(name => !(name in reserved) && !["self", "addEventListener", "postEvent"].includes(name))
             }
 
             setVariableValue(variableName, value, {coerceTo = typeof (value)} = {}) {
@@ -751,17 +739,25 @@ const {observe} = (() => {
                 return this.vars[variableName]?.value;
             }
 
-            variables(variables, {observed, reactive, shared, exported, imported, remote} = {}) { // options = {observed,reactive,shared,exported,imported}
+            variables(variables, {observed, reactive, shared, exported, imported, remote, constant,set} = {}) { // options = {observed,reactive,shared,exported,imported}
                 const addEventListener = this.varsProxy.addEventListener;
                 if (variables !== undefined) {
                     Object.entries(variables)
                         .forEach(([key, type]) => {
                             const variable = this.vars[key] ||= {name: key, type};
+                            if(set!==undefined && constant!==undefined) throw new TypeError(`${key} has the constant value ${constant} and can't be set to ${set}`);
+                            variable.value = set;
+                            if(constant!==undefined) {
+                                variable.constant = true;
+                                variable.value = constant;
+                            }
                             if (observed || imported) {
                                 variable.value = this.hasAttribute(key) ? coerce(this.getAttribute(key), variable.type) : variable.value;
-                                variable.observed = observed;
                                 variable.imported = imported;
-                                if(variable.observed) this.observedAttributes.add(key);
+                                if(variable.observed) {
+                                    variable.observed = observed;
+                                    this.observedAttributes.add(key);
+                                }
                             }
                             if (reactive) {
                                 variable.reactive = true;
@@ -780,10 +776,11 @@ const {observe} = (() => {
                                 this.changeListener.targets.add(key);
                             }
                             if (remote) {
+                                if(typeof(remote)==="function") remote = remote(`./${key}`);
                                 variable.remote = remote;
-                                handleRemote({variable, remote, reactive});
+                                remote.handleRemote({variable, config:remote.config, reactive});
                             }
-                            if(type.validate) type.validate(undefined,variable);
+                            if(type.validate) type.validate(variable.value,variable);
                         });
                 }
                 return Object.entries(this.vars)
@@ -792,146 +789,6 @@ const {observe} = (() => {
                         return result;
                     }, {});
             }
-
-            constants(variables) {
-                if (variables !== undefined) {
-                    Object.entries(variables)
-                        .forEach(([key, value]) => {
-                            const type = typeof (value) === "function" ? value : typeof (value),
-                                variable = this.vars[key];
-                            if (variable !== undefined) throw new TypeError(`${variable.constant ? "const" : "let"} ${key}:${variable.type} already declared.`);
-                            if (value === undefined) throw new TypeError(`const ${key}:undefined must be initialized.`);
-                            this.vars[key] = {type, value, constant: true};
-                        })
-                }
-                return Object.entries(this.vars)
-                    .reduce((result, [key, variable]) => {
-                        if (variable.constant) result[key] = {...variable};
-                        return result;
-                    }, {});
-            }
-        }
-    }
-
-    const remoteProxy = ({json, variable,remote, reactive}) => {
-        const type = typeof (remote);
-        return new Proxy(json, {
-            get(target,property) {
-                if(property==="__remoteProxytarget__") return json;
-                return target[property];
-            },
-            async set(target, property, value) {
-                if(value && typeof(value)==="object" && value instanceof Promise) value = await value;
-                const oldValue = target[property];
-                if (oldValue !== value) {
-                    let remotevalue;
-                    if (type === "string") {
-                        const href = new URL(remote,window.location.href).href;
-                        remotevalue = patch({target,property,value,oldValue},href,variable);
-                    } else if(remote && type==="object") {
-                        let href;
-                        if(remote.path) href = new URL(remote.path,window.location.href).href;
-                        if(!remote.patch) {
-                            if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
-                            remote.patch = patch;
-                        }
-                        remotevalue = remote.patch({target,property,value,oldValue},href,variable);
-                    }
-                    if(remotevalue) {
-                        await remotevalue.then((newjson) => {
-                            if (newjson && typeof (newjson) === "object" && reactive) {
-                                const target = variable.value?.__reactorProxyTarget__ ? json : variable.value;
-                                Object.entries(newjson).forEach(([key,newValue]) => {
-                                    if(target[key]!==newValue) target[key] = newValue;
-                                })
-                                Object.keys(target).forEach((key) => {
-                                    if(!(key in newjson)) delete target[key];
-                                });
-                                if(variable.value?.__reactorProxyTarget__) {
-                                    const dependents = variable.value.__dependents__,
-                                        observers = dependents[property] || [];
-                                    [...observers].forEach((f) => {
-                                        if (f.cancelled) dependents[property].delete(f);
-                                        else f();
-                                    })
-                                }
-                            } else {
-                                variable.value = json;
-                            }
-                        })
-                    }
-                }
-                return true;
-            }
-        })
-    }
-
-    const patch = ({target,property,value,oldValue},href,variable) => {
-        return fetch(href, {
-            method: "PATCH",
-            body: JSON.stringify({property,value,oldValue}),
-            headers: {
-                "Content-Type": "application/json"
-            }
-        }).then((response) => {
-            if (response.status < 400) return response.json();
-        })
-    }
-
-    const get = (href,variable) => {
-        return fetch(href)
-            .then((response) => {
-                if (response.status < 400) return response.json();
-            })
-    }
-
-    const put = (href,variable) => {
-        return fetch(href, {
-            method: "PUT",
-            body: JSON.stringify(variable.value),
-            headers: {
-                "Content-Type": "application/json"
-            }
-        }).then((response) => {
-            if (response.status === 200) return response.json();
-        })
-    }
-
-    const handleRemote = async ({variable, remote, reactive},doput) => {
-        const type = typeof (remote);
-        let value;
-        if (type === "string") {
-            const href = new URL(remote,window.location.href).href;
-            value = (doput
-                ? put(href,variable)
-                : get(href,variable));
-            if(variable.value===undefined) variable.value = value;
-        } else if (remote && type === "object") {
-            let href;
-            if(remote.path) href = new URL(remote.path,window.location.href).href;
-            if(!remote.get || !remote.put) {
-                if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
-                if(!remote.get) remote.get = get;
-                if(!remote.put) remote.put = put;
-            }
-            value = (doput
-                ? remote.put(href,variable)
-                : remote.get(href,variable));
-            if(remote.ttl && !doput && !remote.intervalId) {
-                remote.intervalId = setInterval(async () => {
-                    await handleRemote({variable, remote, reactive});
-                })
-            }
-            if(variable.value===undefined) variable.value = value;
-        }
-        if(value) {
-            variable.value = await value.then((json) => {
-                if (json && typeof (json) === "object" && reactive) {
-                    return remoteProxy({json, variable,remote, reactive})
-                } else {
-                    return json;
-                }
-            })
         }
     }
 

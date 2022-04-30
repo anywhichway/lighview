@@ -9,15 +9,9 @@
 </p>
 
 <script type="lightview/module">
-debugger;
-    self.variables({
-      count: "number"
-    }, {
-      reactive
-    });
-    count = 0;
+    self.variables({count: "number",}, {reactive,set:0});
     self.bump = () => count++;
-  </script>
+</script>
 
 <style>
     button {

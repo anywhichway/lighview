@@ -40,7 +40,7 @@ const validateAny = function(value,variable) {
         variable.validityState = ValidityState({valid:true});
         return value;
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const any = ({required=false,whenInvalid = ifInvalid,...rest}) => { // ...rest allows use of property "default", which is otherwise reserved
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
@@ -78,7 +78,7 @@ const validateArray  = function(value,variable) {
             return result;
         }
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const array = ({coerce=false, required = false,whenInvalid = ifInvalid,maxlength=Infinity,minlength=0,...rest}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
@@ -118,7 +118,7 @@ const validateBoolean  = function(value,variable) {
             return result;
         }
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const boolean = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}) =>{
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
@@ -161,7 +161,7 @@ const validateNumber  = function(value,variable) {
             return result;
         }
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const number = ({coerce=false,required = false,whenInvalid = ifInvalid,min=-Infinity,max=Infinity,step = 1,allowNaN = true,...rest}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
@@ -208,7 +208,7 @@ const validateObject  = function(value,variable) {
             return result;
         }
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const object = ({coerce=false, required = false,whenInvalid = ifInvalid,...rest}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
@@ -247,7 +247,7 @@ const validateString  = function(value,variable) {
             return result;
         }
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const string = ({coerce=false, required = false,whenInvalid = ifInvalid, maxlength = Infinity, minlength = 0, pattern, ...rest}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
@@ -289,7 +289,7 @@ const validateSymbol  = function(value,variable) {
             return result;
         }
     }
-    return this.whenInvalid(variable);
+    return this.whenInvalid(variable,value);
 }
 const symbol = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}) =>{
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
@@ -309,4 +309,133 @@ symbol.validate = validateSymbol;
 symbol.coerce = false;
 symbol.required = false;
 
-export {ValidityState,any,array,boolean,number,string,symbol}
+const remoteProxy = ({json, variable,config, reactive}) => {
+    const type = typeof (config);
+    return new Proxy(json, {
+        get(target,property) {
+            if(property==="__remoteProxytarget__") return json;
+            return target[property];
+        },
+        async set(target, property, value) {
+            if(value && typeof(value)==="object" && value instanceof Promise) value = await value;
+            const oldValue = target[property];
+            if (oldValue !== value) {
+                let remotevalue;
+                if (type === "string") {
+                    const href = new URL(config,window.location.href).href;
+                    remotevalue = patch({target,property,value,oldValue},href,variable);
+                } else if(config && type==="object") {
+                    let href;
+                    if(config.path) href = new URL(config.path,window.location.href).href;
+                    if(!config.patch) {
+                        if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
+                        config.patch = patch;
+                    }
+                    remotevalue = config.patch({target,property,value,oldValue},href,variable);
+                }
+                if(remotevalue) {
+                    await remotevalue.then((newjson) => {
+                        if (newjson && typeof (newjson) === "object" && reactive) {
+                            const target = variable.value?.__reactorProxyTarget__ ? json : variable.value;
+                            Object.entries(newjson).forEach(([key,newValue]) => {
+                                if(target[key]!==newValue) target[key] = newValue;
+                            })
+                            Object.keys(target).forEach((key) => {
+                                if(!(key in newjson)) delete target[key];
+                            });
+                            if(variable.value?.__reactorProxyTarget__) {
+                                const dependents = variable.value.__dependents__,
+                                    observers = dependents[property] || [];
+                                [...observers].forEach((f) => {
+                                    if (f.cancelled) dependents[property].delete(f);
+                                    else f();
+                                })
+                            }
+                        } else {
+                            variable.value = json;
+                        }
+                    })
+                }
+            }
+            return true;
+        }
+    })
+}
+
+const patch = ({target,property,value,oldValue},href,variable) => {
+    return fetch(href, {
+        method: "PATCH",
+        body: JSON.stringify({property,value,oldValue}),
+        headers: {
+            "Content-Type": "application/json"
+        }
+    }).then((response) => {
+        if (response.status < 400) return response.json();
+    })
+}
+
+const get = (href,variable) => {
+    return fetch(href)
+        .then((response) => {
+            if (response.status < 400) return response.json();
+        })
+}
+
+const put = (href,variable) => {
+    return fetch(href, {
+        method: "PUT",
+        body: JSON.stringify(variable.value),
+        headers: {
+            "Content-Type": "application/json"
+        }
+    }).then((response) => {
+        if (response.status === 200) return response.json();
+    })
+}
+
+const handleRemote = async ({variable, config, reactive},doput) => {
+    const type = typeof (config);
+    let value;
+    if (type === "string") {
+        const href = new URL(config,window.location.href).href;
+        value = (doput
+            ? put(href,variable)
+            : get(href,variable));
+        if(variable.value===undefined) variable.value = value;
+    } else if (remote && type === "object") {
+        let href;
+        if(config.path) href = new URL(config.path,window.location.href).href;
+        if(!config.get || !config.put) {
+            if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
+            if(!config.get) config.get = get;
+            if(!config.put) config.put = put;
+        }
+        value = (doput
+            ? config.put(href,variable)
+            : config.get(href,variable));
+        if(config.ttl && !doput && !config.intervalId) {
+            config.intervalId = setInterval(async () => {
+                await handleRemote({variable, config, reactive});
+            })
+        }
+        if(variable.value===undefined) variable.value = value;
+    }
+    if(value) {
+        variable.value = await value.then((json) => {
+            if (json && typeof (json) === "object" && reactive) {
+                return remoteProxy({json, variable,config, reactive})
+            } else {
+                return json;
+            }
+        })
+    }
+}
+
+const remote = (config) => {
+    return {
+        config,
+        handleRemote
+    }
+}
+
+export {ValidityState,any,array,boolean,number,string,symbol,remote}
