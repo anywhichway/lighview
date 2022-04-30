@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<head>
+    <title>Chart</title>
+    <link href="../components/chart.html" rel="module">
+    <script src="../lightview.js"></script>
+</head>
+<body>
+<l-chart id="myPieChart" style="max-width:750px" type="PieChart" title="How Much Pizza I Ate Last Night">
+    // Chart will resize automatically to a max-width of 750px and repaint on type and title changes.
+    // The component DOM element also exposes a method `el.addRow(row:array)` to dynamically add data
+    // And, `el.init()` will re-render from the initial data and current attributes.
+    [
+        ["Topping","Slices"], // column headings
+        ["Mushrooms", 3],  // remaining rows are data
+        ["Onions", 1],
+        ["Olives", 1],
+        ["Zucchini", 1],
+        ["Pepperoni", 2]
+    ]
+</l-chart>
+<l-chart id="myBarChart" style="max-width:750px" type="BarChart" title="How Much Pizza I Ate Last Night">
+    [
+        ["Topping","Slices",{ role: "style" },{ role: "annotation" }], // column headings, annotation does not apply to Pie
+        ["Mushrooms", 3, "brown","M"],  // remaining rows are data
+        ["Onions", 1, "yellow","On"],
+        ["Olives", 1, "black", "Ol"],
+        ["Zucchini", 1,  "green","Z"],
+        ["Pepperoni", 2, "red","P"]
+    ]
+</l-chart>
+<l-chart id="myColumnChart" style="max-width:750px" type="ColumnChart" title="How Much Pizza I Ate Last Night">
+    [
+    ["Topping","Slices",{ role: "style" },{ role: "annotation" }], // column headings, style does not apply to Pie or Bar
+    ["Mushrooms", 3, "brown","Yum"],  // remaining rows are data
+    ["Onions", 1, "yellow","Sweet"],
+    ["Olives", 1, "black","So, so"],
+    ["Zucchini", 1, "green","Ick!"],
+    ["Pepperoni", 2, "red","Spicy!"]
+    ]
+</l-chart>
+<l-chart id="myGauges" style="max-width:750px" type="Gauge" title="Laptop">
+    [
+    ['Label', 'Value'], // gauge will always take two columns, Label and Value
+    ['Memory', 80],
+    ['CPU', 55],
+    ['Network', 68]
+    ]
+    // there is also a separate l-gauge component that shows just one gauge
+    // and is driven entirely by attributes
+</l-chart>
+<script>
+    const gauges = document.getElementById("myGauges");
+    setInterval(function() {
+        gauges.setValue(0, 1, 40 + Math.round(60 * Math.random()));
+    }, 6000);
+    setInterval(function() {
+        gauges.setValue(1, 1, 40 + Math.round(60 * Math.random()));
+    }, 5000);
+    setInterval(function() {
+        gauges.setValue(2, 1, 60 + Math.round(40 * Math.random()));
+    }, 7500);
+</script>
+</body>
+</html>
