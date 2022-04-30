@@ -9,10 +9,10 @@
         </p>
         <script type="lightview/module">
       self.variables({
-        run: boolean
+        run: "boolean"
       },{reactive});
       self.variables({
-        name: string
+        name: "string"
       }, {
         imported
       });
@@ -22,7 +22,7 @@
       }) => {
         if (variableName === "run" && value === true) {
           self.siblings.forEach((sibling) => {
-            sibling.setValue(variableName, false);
+            sibling.setVariableValue(variableName, false);
           })
         }
       })
