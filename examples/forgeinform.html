@@ -46,8 +46,8 @@
 </div>
 <script type="lightview/module">
     self.variables({
-      color: string,
-      checked: boolean,
+      color: "string",
+      checked: "boolean",
       hamburger: Array
     }, {
       reactive
@@ -61,7 +61,7 @@
       while (el.lastElementChild) el.lastElementChild.remove();
       self.getVariableNames().forEach((name) => {
         const line = document.createElement("div");
-        line.innerText = `${name} = ${JSON.stringify(self.getValue(name))}`;
+        line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
         el.appendChild(line);
       });
     };

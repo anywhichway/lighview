@@ -34,31 +34,25 @@
     </p>
 </div>
 <script type="lightview/module">
-    self.variables({
-      color: string,
-      checked: boolean,
-      hamburger: Array
-    }, {
-      reactive
+    self.variables({color:"string"},{reactive});
+    addEventListener("change", () => {
+      variableValues()
     });
-    color = "red";
-    checked = true;
-    hamburger = ["cheese"];
-
+    addEventListener("connected",() => {
+        color = "yellow";
+        checked = true;
+        hamburger = ["cheese"];
+    });
     // demo instrumentation
     const variableValues = () => {
       const el = self.getElementById("variables");
       while (el.lastElementChild) el.lastElementChild.remove();
       self.getVariableNames().forEach((name) => {
         const line = document.createElement("div");
-        line.innerText = `${name} = ${JSON.stringify(self.getValue(name))}`;
+        line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
         el.appendChild(line);
       });
     };
-    variableValues();
-    addEventListener("change", () => {
-      variableValues()
-    });
   </script>
 </body>
 
