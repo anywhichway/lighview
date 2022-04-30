@@ -10,7 +10,7 @@ describe('Google', () => {
     });
 });
 
-describe('Lightview', () => {
+describe('Lightview - Variables', () => {
     beforeAll(async () => {
         await page.goto('http://localhost:8080/test/basic.html');
     });
@@ -22,7 +22,7 @@ describe('Lightview', () => {
     test('boolean - open should be imported', async () => {
         const result = await page.evaluate(() => {
             const el = document.getElementById("test");
-            return JSON.parse(el.getValue("open"));
+            return JSON.parse(el.getVariableValue("open"));
         });
         expect(result).toBe(true);
     });
@@ -30,7 +30,7 @@ describe('Lightview', () => {
     test('number - count should be imported', async () => {
         const result = await page.evaluate(() => {
             const el = document.getElementById("test");
-            return JSON.parse(el.getValue("count"));
+            return JSON.parse(el.getVariableValue("count"));
         });
         expect(result).toBe(1);
     });
@@ -38,7 +38,7 @@ describe('Lightview', () => {
     test('string - name should be imported', async () => {
         const result = await page.evaluate(() => {
             const el = document.getElementById("test");
-            return el.getValue("name");
+            return el.getVariableValue("name");
         });
         expect(result).toBe("joe");
     });
@@ -46,7 +46,7 @@ describe('Lightview', () => {
     test('object - children should be imported', async () => {
         const result = await page.evaluate(() => {
             const el = document.getElementById("test");
-            return el.getValue("children").toJSON();
+            return el.getVariableValue("children").toJSON();
         });
         expect(Array.isArray(result)).toBe(true);
         expect(result[0]).toBe("mary");
@@ -167,7 +167,7 @@ describe('Lightview', () => {
         const result = await page.evaluate(async () => {
             const el0 = document.getElementById("test"),
                 el1 = document.getElementById("test1")
-            return [el0.getValue("myshare"),el1.getValue("myshare")];
+            return [el0.getVariableValue("myshare"),el1.getVariableValue("myshare")];
         });
         expect(Array.isArray(result)).toBe(true);
         expect(result[0]).toBe(result[1]);
@@ -182,21 +182,78 @@ describe('Lightview', () => {
         expect(result).toBe("test");
     });
 
-    // "tel", "email", "url", "search", "radio", "color", "password"
-    ["text","tel","email", "url", "search", "radio", "color", "password"].forEach((type) => {
-        const f =  Function(`return async () => {
+
+    test('text input - itext should be test', async () => {
         const result = await page.evaluate(async () => {
             const el = document.getElementById("test"),
-                result = el.getElementById("i${type}");
-            return {value:result.getAttribute("value"),variable:el.vars["i${type}"]};
+                result = el.getElementById(`itext`);
+            return result.getAttribute("value");
         });
-        const {value,variable} = result;
-        expect(value).toBe("test");
-         expect(variable.name).toBe("i${type}");
-         expect(variable.type).toBe("string");
-          expect(variable.value).toBe(value);
-    }`)();
-        test(`${type} input - i${type} should be "test"`,f);
+        expect(result).toBe("test");
+    });
+
+
+    test('tel input - itel should be test', async () => {
+        const result = await page.evaluate(async () => {
+            const el = document.getElementById("test"),
+                result = el.getElementById("itel");
+            return result.getAttribute("value");
+        });
+        expect(result).toBe("test");
+    });
+
+    test('email input - email should be test', async () => {
+        const result = await page.evaluate(async () => {
+            const el = document.getElementById("test"),
+                result = el.getElementById("iemail");
+            return result.getAttribute("value");
+        });
+        expect(result).toBe("test");
+    });
+
+        test('url input - url should be test', async () => {
+            const result = await page.evaluate(async () => {
+                const el = document.getElementById("test"),
+                    result = el.getElementById("iurl");
+                return result.getAttribute("value");
+            });
+            expect(result).toBe("test");
+        });
+
+        test('search input - search should be test', async () => {
+            const result = await page.evaluate(async () => {
+                const el = document.getElementById("test"),
+                    result = el.getElementById("isearch");
+                return result.getAttribute("value");
+            });
+            expect(result).toBe("test");
+        });
+
+        test('radio input - radio should be test', async () => {
+            const result = await page.evaluate(async () => {
+                const el = document.getElementById("test"),
+                    result = el.getElementById("iradio");
+                return result.checked;
+            });
+            expect(result).toBe(true);
+        });
+
+        test('color input - color should be test', async () => {
+            const result = await page.evaluate(async () => {
+                const el = document.getElementById("test"),
+                    result = el.getElementById("icolor");
+                return result.getAttribute("value");
+            });
+            expect(result).toBe("test");
+        });
+
+        test('password input - password should be test', async () => {
+            const result = await page.evaluate(async () => {
+                const el = document.getElementById("test"),
+                    result = el.getElementById("ipassword");
+                return result.getAttribute("value");
+            });
+            expect(result).toBe("test");
         });
 
     test('number input - inumber should be 1', async () => {
@@ -232,17 +289,37 @@ describe('Lightview', () => {
         const result = await page.evaluate(async () => {
             const el = document.getElementById("test"),
                 result = el.getElementById("icheckbox")
-            return JSON.parse(result.getAttribute("value"));
+            return result.checked;
         });
         expect(result).toBe(true);
     });
+});
 
+describe("Lightview - on: directive", () => {
     test('on:<handler> - count should be bumped', async () => {
         await page.click("#test",{waitUntil:"load"});
         const result = await page.evaluate(async () => {
             const el = document.getElementById("test");
-            return JSON.parse(el.getValue("counter"));
+            return JSON.parse(el.getVariableValue("counter"));
         });
         expect(result).toBe(1);
     });
-});
+})
+
+describe("Lightview - lifecycle", () => {
+    test('connected should be called', async () => {
+        const result = await page.evaluate(async () => {
+            const el = document.getElementById("test");
+            return el.testId;
+        });
+        expect(result).toBe("test");
+    });
+    test('change should be called', async () => {
+        await page.click("#test",{waitUntil:"load"});
+        const result = await page.evaluate(async () => {
+            const el = document.getElementById("test");
+            return el.counter;
+        });
+        expect(result).toBe(2);
+    });
+})
