@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Basic</title>
     <template id="x-test" name="joe" open="true" count=1 children='["mary"]' l-on:click="bump">
+
         <span id="name">${name}</span>
         <span id="open">${open}</span>
         <span id="count">${count}</span>
@@ -18,8 +19,9 @@
         <input id="itel" type="tel" value="${itel}">
         <input id="iemail" type="email" value="${iemail}">
         <input id="iurl" type="url" value="${iurl}">
+        <input id="iradio" type="radio" name="iradio" value="test">
         <input id="isearch" type="search" value="${isearch}">
-        <input id="iradio" type="radio" value="${iradio}">
+
         <input id="icolor" type="color" value="${icolor}">
         <input id="ipassword" type="password" value="${ipassword}">
 
@@ -31,11 +33,11 @@
         <input id="icheckbox" type="checkbox" value="${icheckbox}">
 
         <script type="lightview/module">
-        debugger;
-            self.variables({name:string,open:boolean,count:number,children:Array},{imported,reactive});
-            self.variables({color:string,checked:boolean,age:number,hamburger:Array},{exported,reactive});
-            self.variables({counter:number},{reactive});
-            self.variables({myshare:number},{shared});
+        //debugger;
+            self.variables({name:"string",open:"boolean",count:"number",children:Array},{imported,reactive});
+            self.variables({color:"string",checked:"boolean",age:"number",hamburger:Array},{exported,reactive});
+            self.variables({counter:"number"},{reactive});
+            self.variables({myshare:"number"},{shared});
 
             color = "green";
             checked = true;
@@ -44,26 +46,33 @@
             counter = 0;
             myshare = 1;
 
-            iuntyped = "test";
-            itext = "test";
-            itel = "test";
-            iemail = "test";
-            iurl = "test";
-            isearch = "test";
-            iradio = "test";
-            icolor = "test";
-            ipassword = "test";
+            addEventListener("connected", ({target}) => {
+                iuntyped = "test";
+                itext = "test";
+                itel = "test";
+                iemail = "test";
+                iurl = "test";
+                isearch = "test";
+                iradio = "test";
+                icolor = "test";
+                ipassword = "test";
 
-            inumber = 1;
-            irange = 1;
+                inumber = 1;
+                irange = 1;
+debugger;
+                idatetime = new Date();
 
-            idatetime = new Date();
-
-            icheckbox = true;
+                icheckbox = true;
+                target.testId = target.id;
+            });
 
             self.bump = () => {
                 counter++;
-                };
+            };
+
+            addEventListener("change",({variableName,value}) => {
+                self[variableName] = value;
+            });
         </script>
     </template>
     <script src="../lightview.js"></script>
