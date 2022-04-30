@@ -69,23 +69,23 @@ const {observe} = (() => {
         if (name.includes("-")) return name;
         return "l-" + name;
     }
-    const observe = async (f, thisArg, argsList = []) => {
-        const observer = async (...args) => {
+    const observe = (f, thisArg, argsList = []) => {
+        const observer = (...args) => {
             if(observer.cancelled) return;
             CURRENTOBSERVER = observer;
             try {
-                await f.call(thisArg || this, ...argsList, ...args);
+                f.call(thisArg || this, ...argsList, ...args);
             } catch (e) {
 
             }
             CURRENTOBSERVER = null;
         }
         observer.cancel = () => observer.cancelled = true;
-        await observer();
+        observer();
         return observer;
     }
     const coerce = (value, toType) => {
-        if (value + "" === "null" || value + "" === "undefined") return value;
+        if (value + "" === "null" || value + "" === "undefined" || toType==="any") return value;
         const type = typeof (value);
         if (type === toType) return value;
         if (toType === "number") return parseFloat(value + "");
@@ -103,7 +103,7 @@ const {observe} = (() => {
         if (toType === "string") return value + "";
         const isfunction = typeof (toType) === "function";
         if ((toType === "object" || isfunction)) {
-            if (type === "object") {
+            if (type === "object" && isfunction) {
                 if (value instanceof toType) return value;
             }
             if (type === "string") {
@@ -164,13 +164,16 @@ const {observe} = (() => {
                                 return JSON.stringify([...target]);
                             }
                         }
+                        if(target instanceof Date) {
+                            return Reflect.get(target,property);
+                        }
                         let value = target[property];
-                        if(value===undefined) return;
                         const type = typeof (value);
                         if (CURRENTOBSERVER && typeof (property) !== "symbol" && type !== "function") {
                             const observers = dependents[property] ||= new Set();
                             observers.add(CURRENTOBSERVER)
                         }
+                        if(value===undefined) return;
                         if (childReactors.includes(value) || (value && type !== "object") || typeof (property) === "symbol") {
                             // Dates and Promises must be bound to work with proxies
                             if (type === "function" && ([Date].includes(value) || property==="then")) value = value.bind(target)
@@ -220,12 +223,14 @@ const {observe} = (() => {
     const createVarsProxy = (vars, component, constructor) => {
         return new Proxy(vars, {
             get(target, property) {
+                if(target instanceof Date) {
+                    return Reflect.get(target,property);
+                }
                 let {value} = target[property] || {};
                 if (typeof (value) === "function") return value.bind(target);
                 return value;
             },
-            async set(target, property, newValue) {
-                if(newValue && typeof(newValue)==="object" && newValue instanceof Promise) newValue = await newValue;
+            set(target, property, newValue) {
                 const event = new VariableEvent({variableName: property, value: newValue});
                 if (target[property] === undefined) {
                     target[property] = {type: "any", value: newValue}; // should we allow this,  do first to prevent loops
@@ -233,11 +238,13 @@ const {observe} = (() => {
                     if (event.defaultPrevented) delete target[property].value;
                     return true;
                 }
-                const {type, value, shared, exported, constant, reactive, remote} = target[property];
+                const variable = target[property],
+                    {type, value, shared, exported, constant, reactive, remote} = variable;
                 if (constant) throw new TypeError(`${property}:${type} is a constant`);
+                newValue = type.validate ? type.validate(newValue,target[property]) : coerce(newValue,type);
                 const newtype = typeof (newValue),
                     typetype = typeof (type);
-                if (newValue == null || type === "any" || newtype === type || (typetype === "function" && newValue && newtype === "object" && newValue instanceof type)) {
+                if (newValue == null || type === "any" || (newtype === type && typetype==="string") || (typetype === "function" && (newValue && newtype === "object" && newValue instanceof type) || variable.validityState?.valid)) {
                     if (value !== newValue) {
                         event.oldValue = value;
                         target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
@@ -245,7 +252,7 @@ const {observe} = (() => {
                         if (event.defaultPrevented) {
                             target[property].value = value;
                         } else if(remote) {
-                            handleRemote({variable:target[property],remote,reactive},true);
+                            handleRemote({variable,remote,reactive},true);
                         }
                     }
                     return true;
@@ -261,22 +268,21 @@ const {observe} = (() => {
         });
     }
     const createObserver = (domNode, framed) => {
-        const observer = new MutationObserver((mutations) => {
+        const mobserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
+                const target = mutation.target;
                 if (mutation.type === "attributes") {
                     //if (framed) debugger;
                     const name = mutation.attributeName,
-                        target = mutation.target,
                         value = target.getAttribute(name);
                     if (framed && name === "message" && target instanceof IFrameElement) {
-                        if (value) console.log("message", value);
+                        //if (value) console.log("message", value);
                         target.removeAttribute(name);
                         target.dispatchEvent(new CustomEvent("message", {detail: JSON.parse(value)}))
                     }
                     if (target.observedAttributes && target.observedAttributes.includes(name)) {
                         if (value !== mutation.oldValue) {
-                            target.setValue(name, value);
-                            if (target.attributeChangedCallback) target.attributeChangedCallback(name, value, mutation.oldValue);
+                            target.setVariableValue(name, value);
                         }
                     }
                 } else if (mutation.type === "childList") {
@@ -286,11 +292,13 @@ const {observe} = (() => {
                     for (const target of mutation.addedNodes) {
                         if (target.connectedCallback) target.connectedCallback();
                     }
+                } else if(mutation.type === "characterData") {
+                    if(target.characterDataMutationCallback) target.characterDataMutationCallback(target,mutation.oldValue,target.textContent);
                 }
             });
         });
-        observer.observe(domNode, {subtree: true, childList: true});
-        return observer;
+        mobserver.observe(domNode, {subtree: true, childList: true});
+        return mobserver;
     }
     const querySelectorAll = (node, selector) => {
         const nodes = [...node.querySelectorAll(selector)],
@@ -312,17 +320,19 @@ const {observe} = (() => {
                     node.template ||= node.nodeValue;
                     nodes.push(node);
                 } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    let skip;
-                    if (node.getAttribute("type") === "radio") nodes.push(node);
+                    let skip, pushed;
                     [...node.attributes].forEach((attr) => {
                         if (attr.value.includes("${")) {
                             attr.template ||= attr.value;
+                            pushed = true;
                             nodes.push(node);
                         } else if (attr.name.includes(":") || attr.name.startsWith("l-")) {
                             skip = attr.name.includes("l-for:");
+                            pushed = true;
                             nodes.push(node)
                         }
                     })
+                    if (!pushed && node.getAttribute("type") === "radio") nodes.push(node);
                     if (!skip && !node.shadowRoot) nodes.push(...getNodes(node));
                 }
             }
@@ -337,11 +347,12 @@ const {observe} = (() => {
             try {
                 let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(template) + "` }")(component.varsProxy);
                 value = node.nodeType === Node.TEXT_NODE || !safe ? value : Lightview.escapeHTML(value);
-                if (type === "string") return value;
+                if (type === "string") return value==="undefined" ? undefined : value;
                 node.nodeValue = value == "null" || value == "undefined" ? "" : value;
             } catch (e) {
-                console.warn(e);
+                //console.warn(e);
                 if (!e.message.includes("defined")) throw e; // actually looking for undefined or not defined
+                return undefined;
             }
         }
         return node?.nodeValue;
@@ -374,16 +385,18 @@ const {observe} = (() => {
         if (bound.has(input)) return;
         bound.add(input);
         const inputtype = input.tagName === "SELECT" || input.tagName === "TEXTAREA" ? "text" : input.getAttribute("type"),
-            type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype),
-            deflt = input.getAttribute("default");
+            type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype);
         value ||= input.getAttribute("value");
         let variable = component.vars[variableName] || {type};
         if (type !== variable.type) {
             if (variable.type === "any" || variable.type === "unknown") variable.type = type;
             else throw new TypeError(`Attempt to bind <input name="${variableName}" type="${type}"> to variable ${variableName}:${variable.type}`)
         }
-        component.variables({[variableName]: type});
-        if (inputtype !== "radio") component.setValue(variableName, value);
+        component.variables({[variableName]: type},{reactive:true});
+        if(inputtype!=="radio") {
+            if(value.includes("${")) input.attributes.value.value = "";
+            else component.setVariableValue(variableName, coerce(value,type));
+        }
         let eventname = "change";
         if (input.tagName !== "SELECT" && (!inputtype || input.tagName === "TEXTAREA" || ["text", "number", "tel", "email", "url", "search", "password"].includes(inputtype))) {
             eventname = "input";
@@ -413,11 +426,6 @@ const {observe} = (() => {
         }
     }
     let reserved = {
-        any: {value: "any", constant: true},
-        boolean: {value: "boolean", constant: true},
-        string: {value: "string", constant: true},
-        number: {value: "number", constant: true},
-        object: {value: "object", constant: true},
         observed: {value: true, constant: true},
         reactive: {value: true, constant: true},
         shared: {value: true, constant: true},
@@ -429,7 +437,9 @@ const {observe} = (() => {
         const instances = new Set(),
             dom = domElementNode.tagName === "TEMPLATE"
                 ? domElementNode.content.cloneNode(true)
-                : domElementNode.cloneNode(true);
+                : domElementNode.cloneNode(true),
+            observedAttributes = [];
+        observedAttributes.add = function(name) { observedAttributes.includes(name) || observedAttributes.push(name); }
         if (domElementNode.tagName === "TEMPLATE") domElementNode = domElementNode.cloneNode(true);
         return class CustomElement extends HTMLElement {
             static get instances() {
@@ -439,10 +449,18 @@ const {observe} = (() => {
             constructor() {
                 super();
                 instances.add(this);
-                observer ||= createObserver(this, framed);
                 const currentComponent = this,
                     shadow = this.attachShadow({mode: "open"}),
                     eventlisteners = {};
+                // needs to be local to the instance
+                Object.defineProperty(this,"changeListener",{value:
+                    function({variableName, value}) {
+                    if (currentComponent.changeListener.targets.has(variableName)) {
+                        value = typeof (value) === "string" || !value ? value : JSON.stringify(value);
+                        if (value == null) removeComponentAttribute(currentComponent, variableName);
+                        else setComponentAttribute(currentComponent, variableName, value);
+                    }
+                }});
                 this.vars = {
                     ...reserved,
                     addEventListener: {
@@ -457,9 +475,10 @@ const {observe} = (() => {
                         constant: true
                     },
                     postEvent: {
-                        value: (eventName, event) => {
+                        value: (eventName, event={}) => {
                             //event = {...event}
                             event.type = eventName;
+                            event.target = currentComponent;
                             eventlisteners[eventName]?.forEach((f) => f(event));
                         },
                         type: "function",
@@ -469,6 +488,8 @@ const {observe} = (() => {
                 };
                 this.defaultAttributes = domElementNode.tagName === "TEMPLATE" ? domElementNode.attributes : dom.attributes;
                 this.varsProxy = createVarsProxy(this.vars, this, CustomElement);
+                this.changeListener.targets = new Set();
+                this.varsProxy.addEventListener("change", this.changeListener);
                 if (framed || CustomElement.lightviewFramed) this.variables({message: Object}, {exported: true});
                 ["getElementById", "querySelector", "querySelectorAll"]
                     .forEach((fname) => {
@@ -499,27 +520,39 @@ const {observe} = (() => {
                     shadow = ctx.shadowRoot;
                 for (const attr of this.defaultAttributes) this.hasAttribute(attr.name) || this.setAttribute(attr.name, attr.value);
                 const scripts = shadow.querySelectorAll("script"),
-                    promises = [];
-                for (const script of scripts) {
+                    promises = [],
+                    scriptpromises = [];
+                for (const script of [...scripts]) {
                     if (script.attributes.src?.value?.includes("/lightview.js")) continue;
-                    if (script.className !== "lightview" && !((script.getAttribute("type") || "").includes("lightview/"))) continue;
-                    const scriptid = Math.random() + "",
-                        currentScript = document.createElement("script");
+                    const currentScript = document.createElement("script");
+                    if (script.className !== "lightview" && !((script.attributes.type?.value || "").includes("lightview/"))) {
+                        for (const attr of script.attributes) currentScript.setAttribute(attr.name,attr.value);
+                        scriptpromises.push(new Promise((resolve) => {
+                            currentScript.onload = () => resolve();
+                        }))
+                        shadow.appendChild(currentScript);
+                        currentScript.remove();
+                        continue;
+                    };
+                    const scriptid = Math.random() + "";
                     for (const attr of script.attributes) {
                         currentScript.setAttribute(attr.name, attr.name === "type" ? attr.value.replace("lightview/", "") : attr.value);
                     }
                     currentScript.classList.remove("lightview");
                     const text = script.innerHTML.replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1").replaceAll(/\r?\n/g, "");
-                    currentScript.innerHTML = `Object.getPrototypeOf(async function(){}).constructor('if(window["${scriptid}"]?.ctx) { with(window["${scriptid}"].ctx) { ${text}; }  window["${scriptid}"](); }')(); `;
+                    currentScript.innerHTML = `Object.getPrototypeOf(async function(){}).constructor('if(window["${scriptid}"]?.ctx) { const ctx = window["${scriptid}"].ctx; { with(ctx) { ${text}; } } }')().then(() => window["${scriptid}"]()); `;
                     let resolver;
-                    promises.push(new Promise((resolve) => resolver = resolve));
                     window[scriptid] = () => {
                         delete window[scriptid];
                         currentScript.remove();
                         resolver();
                     }
                     window[scriptid].ctx = ctx.varsProxy;
-                    ctx.appendChild(currentScript);
+                    promises.push(new Promise((resolve) => {
+                        resolver = resolve;
+                        // wait for all regular scripts to load first
+                        Promise.all(scriptpromises).then(() => shadow.appendChild(currentScript));
+                    }));
                 }
                 Promise.all(promises).then(() => {
                     const nodes = getNodes(ctx);
@@ -528,85 +561,84 @@ const {observe} = (() => {
                             render(!!node.template,  () => resolveNodeOrText(node, this))
                         } else if (node.nodeType === Node.ELEMENT_NODE) {
                             // resolve the value before all else;
-                            const attr = node.attributes.value;
-                            if (attr && attr.template) {
-                                render(!!attr.template,  () => {
-                                    const value = resolveNodeOrText(attr, this),
+                            const attr = node.attributes.value,
+                                template = attr?.template;
+                            if (attr && template) {
+                                //render(!!template,  () => {
+                                    let value = resolveNodeOrText(attr, this),
                                         eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx) : null;
-                                    if (node.attributes.value) {
-                                        const template = attr.template;
+                                    const template = attr.template;
+                                    if (template) {
                                         if (/\$\{[a-zA-z_]+\}/g.test(template)) {
                                             const name = template.substring(2, template.length - 1);
-                                            bindInput(node, name, this, value);
-                                        }
-                                    }
-                                    if (eltype === "checkbox") {
-                                        if (coerce(value, "boolean") === true) {
-                                            node.setAttribute("checked", "");
-                                            node.checked = true;
-                                        } else {
-                                            node.removeAttribute("checked");
-                                            node.checked = false;
-                                        }
-                                        const vname = resolveNodeOrText(node.attributes.name, ctx);
-                                        if (vname) ctx.setValue(vname, node.checked, {coerceTo: "boolean"});
-                                    }
-                                    if (node.tagName === "SELECT") {
-                                        let values = [value];
-                                        if (node.hasAttribute("multiple")) values = coerce(value, Array);
-                                        [...node.querySelectorAll("option")].forEach(async (option) => {
-                                            if (option.hasAttribute("value")) {
-                                                if (values.includes(resolveNodeOrText(option.attributes.value, ctx))) {
-                                                    option.setAttribute("selected", "");
-                                                    option.selected = true;
-                                                }
-                                            } else if (values.includes(resolveNodeOrText(option.innerText, ctx))) {
-                                                option.setAttribute("selected", "");
-                                                option.selected = true;
+                                            if(!this.vars[name] || this.vars[name].reactive) {
+                                                bindInput(node, name, this, value);
                                             }
-                                        })
-                                    }
-                                });
-                            }
-                            [...node.attributes].forEach(async (attr) => {
-                                if (attr.name === "value" && attr.template) return;
-                                const {name, value} = attr;
-                                if (name === "type") {
-                                    if (value === "radio") {
-                                        const name = resolveNodeOrText(node.attributes.name, ctx);
-                                        for (const vname of this.getVariableNames()) {
-                                            if (vname === name) {
-                                                render(true,  () => {
-                                                    const name = resolveNodeOrText(node.attributes.name, ctx),
-                                                        varvalue =  Function("context", "with(context) { return `${" + name + "}` }")(ctx.varsProxy);
-                                                    if (varvalue == resolveNodeOrText(node.attributes.value, ctx)) {
+                                        }
+                                        observe(() => {
+                                            const value = resolveNodeOrText(template, ctx);
+                                            if(value!==undefined) {
+                                                if (eltype === "checkbox") {
+                                                    if (coerce(value, "boolean") === true) {
                                                         node.setAttribute("checked", "");
                                                         node.checked = true;
                                                     } else {
                                                         node.removeAttribute("checked");
                                                         node.checked = false;
                                                     }
-                                                });
-                                                bindInput(node, name, ctx);
-                                                break;
+                                                } else if (node.tagName === "SELECT") {
+                                                    let values = [value];
+                                                    if (node.hasAttribute("multiple")) values = coerce(value, Array);
+                                                    [...node.querySelectorAll("option")].forEach(async (option) => {
+                                                        if (option.hasAttribute("value")) {
+                                                            if (values.includes(resolveNodeOrText(option.attributes.value, ctx))) {
+                                                                option.setAttribute("selected", "");
+                                                                option.selected = true;
+                                                            }
+                                                        } else if (values.includes(resolveNodeOrText(option.innerText, ctx))) {
+                                                            option.setAttribute("selected", "");
+                                                            option.selected = true;
+                                                        }
+                                                    })
+                                                } else if (eltype!=="radio") {
+                                                    attr.value = value;
+                                                }
                                             }
-                                        }
+                                        });
                                     }
+                            }
+                           [...node.attributes].forEach(async (attr) => {
+                                if (attr.name === "value" && attr.template) return;
+                                const {name, value} = attr,
+                                    vname = node.attributes.name?.value;
+                                if (name === "type" && value=="radio" && vname) {
+                                        bindInput(node, vname, this);
+                                        render(true,  () => {
+                                            const varvalue =  Function("context", "with(context) { return `${" + vname + "}` }")(ctx.varsProxy);
+                                            if (node.attributes.value.value == varvalue) {
+                                                node.setAttribute("checked", "");
+                                                node.checked = true;
+                                            } else {
+                                                node.removeAttribute("checked");
+                                                node.checked = false;
+                                            }
+                                        });
                                 }
 
                                 const [type, ...params] = name.split(":");
                                 if (type === "") { // name is :something
                                     render(!!attr.template,  () => {
-                                        const value = attr.value,
-                                            elvalue = resolveNodeOrText(node.attributes.value, ctx),
-                                            eltype = resolveNodeOrText(node.attributes.type, ctx),
-                                            elname = resolveNodeOrText(node.attributes.name, ctx);
+                                        const value = attr.value;
                                         if (params[0]) {
                                             if (value === "true") node.setAttribute(params[0], "")
                                             else node.removeAttribute(params[0]);
-                                        } else if (eltype === "checkbox" || node.tagName === "OPTION") {
-                                            if (value === "true") node.setAttribute("checked", "")
-                                            else node.removeAttribute("checked");
+                                        } else {
+                                            const elvalue = node.attributes.value ? resolveNodeOrText(node.attributes.value, ctx) : null,
+                                                eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx) : null;
+                                            if (eltype === "checkbox" || node.tagName === "OPTION") {
+                                                if (elvalue === "true") node.setAttribute("checked", "")
+                                                else node.removeAttribute("checked");
+                                            }
                                         }
                                     })
                                 } else if (type === "l-on") {
@@ -651,42 +683,33 @@ const {observe} = (() => {
                                             else node.appendChild(parsed.body.firstChild);
                                         }
                                     })
-                                } else if (attr.template) {
-                                    render(!!attr.template,  () => resolveNodeOrText(attr, this));
+                                } else {
+                                    render(!!attr.template,  () => {
+                                        resolveNodeOrText(attr, this);
+                                    })
                                 }
                             })
                         }
                     })
                     shadow.normalize();
-                    observer.observe(ctx, {attributeOldValue: true});
-                    if (ctx.hasOwnProperty("connectedCallback")) ctx.connectedCallback();
+                    observer ||= createObserver(ctx, framed);
+                    observer.observe(ctx, {attributeOldValue: true, subtree:true, characterData:true, characterDataOldValue:true});
+                    ctx.vars.postEvent.value("connected");
                 })
             }
-
-            adopted(value) {
-                this.adoptedCallback = value;
-                //Object.defineProperty(this, "adoptedCallback", {configurable: true, writable: true, value});
+            adoptedCallback(callback) {
+                this.vars.postEvent.value("adopted");
+                super.adoptedCallback();
             }
-
-            connected(callback) {
-                this.connectedCallback = callback;
-                //Object.defineProperty(this, "connectedCallback", {configurable: true, writable: true, value});
+            disconnectedCallback() {
+                this.vars.postEvent.value("disconnected");
+                super.disconnectedCallback();
             }
-
-            attributeChanged(callback) {
-                this.attributeChangedCallback = callback;
-                //Object.defineProperty(this, "attributeChangedCallback", {configurable: true, writable: true, value});
+            get observedAttributes() {
+                return CustomElement.observedAttributes;
             }
-
-            disconnected(callback) {
-                Object.defineProperty(this, "disconnectedCallback", {
-                    configurable: true,
-                    writable: true,
-                    value: () => {
-                        value();
-                        super.disconnectedCallback(callback);
-                    }
-                });
+            static get observedAttributes() {
+                return observedAttributes;
             }
 
             getVariableNames() {
@@ -695,17 +718,17 @@ const {observe} = (() => {
                 })
             }
 
-            setValue(variableName, value, {coerceTo = typeof (value)} = {}) {
+            setVariableValue(variableName, value, {coerceTo = typeof (value)} = {}) {
                 if (!this.isConnected) {
                     instances.delete(this);
                     return false;
                 }
                 let {type} = this.vars[variableName] || {};
                 if (type) {
-                    value = coerce(value, type);
                     if (this.varsProxy[variableName] !== value) {
                         const variable = this.vars[variableName];
                         if (variable.shared) {
+                            value = type.validate ? type.validate(value,variable) : coerce(value,coerceTo);
                             const event = new VariableEvent({
                                 variableName: variableName,
                                 value: value,
@@ -724,7 +747,7 @@ const {observe} = (() => {
                 return false;
             }
 
-            getValue(variableName) {
+            getVariableValue(variableName) {
                 return this.vars[variableName]?.value;
             }
 
@@ -738,6 +761,7 @@ const {observe} = (() => {
                                 variable.value = this.hasAttribute(key) ? coerce(this.getAttribute(key), variable.type) : variable.value;
                                 variable.observed = observed;
                                 variable.imported = imported;
+                                if(variable.observed) this.observedAttributes.add(key);
                             }
                             if (reactive) {
                                 variable.reactive = true;
@@ -746,25 +770,20 @@ const {observe} = (() => {
                             if (shared) {
                                 variable.shared = true;
                                 addEventListener("change", ({variableName, value}) => {
-                                    if (this.vars[variableName]?.shared) {
-                                        this.siblings.forEach((instance) => instance.setValue(variableName, value))
-                                    }
+                                    if (this.vars[variableName]?.shared) this.siblings.forEach((instance) => instance.setVariableValue(variableName, value))
                                 })
                             }
                             if (exported) {
                                 variable.exported = true;
                                 // in case the export goes up to an iframe
                                 if (variable.value != null) setComponentAttribute(this, key, variable.value);
-                                addEventListener("change", ({variableName, value}) => {
-                                    value = typeof (value) === "string" || !value ? value : JSON.stringify(value);
-                                    if (value == null) removeComponentAttribute(this, variableName);
-                                    else setComponentAttribute(this, variableName, value);
-                                })
+                                this.changeListener.targets.add(key);
                             }
                             if (remote) {
                                 variable.remote = remote;
                                 handleRemote({variable, remote, reactive});
                             }
+                            if(type.validate) type.validate(undefined,variable);
                         });
                 }
                 return Object.entries(this.vars)
@@ -808,7 +827,7 @@ const {observe} = (() => {
                     let remotevalue;
                     if (type === "string") {
                         const href = new URL(remote,window.location.href).href;
-                        remotevalue = patch({target,property,value,oldValue},href);
+                        remotevalue = patch({target,property,value,oldValue},href,variable);
                     } else if(remote && type==="object") {
                         let href;
                         if(remote.path) href = new URL(remote.path,window.location.href).href;
@@ -816,21 +835,17 @@ const {observe} = (() => {
                             if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
                             remote.patch = patch;
                         }
-                        remotevalue = remote.patch({target,property,value,oldValue},href);
+                        remotevalue = remote.patch({target,property,value,oldValue},href,variable);
                     }
                     if(remotevalue) {
                         await remotevalue.then((newjson) => {
                             if (newjson && typeof (newjson) === "object" && reactive) {
                                 const target = variable.value?.__reactorProxyTarget__ ? json : variable.value;
                                 Object.entries(newjson).forEach(([key,newValue]) => {
-                                    if(target[key]!==newValue) {
-                                        target[key] = newValue;
-                                    }
+                                    if(target[key]!==newValue) target[key] = newValue;
                                 })
                                 Object.keys(target).forEach((key) => {
-                                    if(!(key in newjson)) {
-                                        delete target[key];
-                                    }
+                                    if(!(key in newjson)) delete target[key];
                                 });
                                 if(variable.value?.__reactorProxyTarget__) {
                                     const dependents = variable.value.__dependents__,
@@ -851,7 +866,7 @@ const {observe} = (() => {
         })
     }
 
-    const patch = ({target,property,value,oldValue},href) => {
+    const patch = ({target,property,value,oldValue},href,variable) => {
         return fetch(href, {
             method: "PATCH",
             body: JSON.stringify({property,value,oldValue}),
@@ -863,14 +878,14 @@ const {observe} = (() => {
         })
     }
 
-    const get = ({variable,remote,reactive},path) => {
-        return fetch(path)
+    const get = (href,variable) => {
+        return fetch(href)
             .then((response) => {
                 if (response.status < 400) return response.json();
             })
     }
 
-    const put = ({variable,remote,reactive},href) => {
+    const put = (href,variable) => {
         return fetch(href, {
             method: "PUT",
             body: JSON.stringify(variable.value),
@@ -878,9 +893,7 @@ const {observe} = (() => {
                 "Content-Type": "application/json"
             }
         }).then((response) => {
-            if (response.status === 200) {
-                return response.json();
-            }
+            if (response.status === 200) return response.json();
         })
     }
 
@@ -890,8 +903,8 @@ const {observe} = (() => {
         if (type === "string") {
             const href = new URL(remote,window.location.href).href;
             value = (doput
-                ? put({variable, remote, reactive},href)
-                : get({variable, remote, reactive},href));
+                ? put(href,variable)
+                : get(href,variable));
             if(variable.value===undefined) variable.value = value;
         } else if (remote && type === "object") {
             let href;
@@ -902,8 +915,8 @@ const {observe} = (() => {
                 if(!remote.put) remote.put = put;
             }
             value = (doput
-                ? remote.put({variable, remote, reactive},href)
-                : remote.get({variable, remote, reactive},href));
+                ? remote.put(href,variable)
+                : remote.get(href,variable));
             if(remote.ttl && !doput && !remote.intervalId) {
                 remote.intervalId = setInterval(async () => {
                     await handleRemote({variable, remote, reactive});
@@ -916,7 +929,7 @@ const {observe} = (() => {
                 if (json && typeof (json) === "object" && reactive) {
                     return remoteProxy({json, variable,remote, reactive})
                 } else {
-                   return json;
+                    return json;
                 }
             })
         }
@@ -925,11 +938,8 @@ const {observe} = (() => {
     const createComponent = (name, node, {framed, observer} = {}) => {
         let ctor = customElements.get(name);
         if (ctor) {
-            if (framed && !ctor.lightviewFramed) {
-                ctor.lightviewFramed = true;
-            } else {
-                console.warn(new Error(`${name} is already a CustomElement. Not redefining`));
-            }
+            if (framed && !ctor.lightviewFramed) ctor.lightviewFramed = true;
+            else console.warn(new Error(`${name} is already a CustomElement. Not redefining`));
             return ctor;
         }
         ctor = createClass(node, {observer, framed});
@@ -939,7 +949,6 @@ const {observe} = (() => {
     }
     Lightview.customElements = new Map();
     Lightview.createComponent = createComponent;
-    //Object.defineProperty(Lightview, "createComponent", {writable: true, configurable: true, value: createComponent})
     const importLink = async (link, observer) => {
         const url = (new URL(link.getAttribute("href"), window.location.href)),
             as = link.getAttribute("as") || getNameFromPath(url.pathname);
@@ -1034,21 +1043,19 @@ const {observe} = (() => {
                             postMessage({type: "setAttribute", argsList: ["height", height + 20]});
                         }
                         resize();
-                        onresize(document.body, () => {
-                            resize();
-                        });
+                        onresize(document.body, () => resize());
                         return
                     }
                     if (type === "setAttribute") {
                         const [name, value] = [...argsList],
                             variable = document.body.vars[name];
-                        if (variable && variable.imported) document.body.setValue(name, value);
+                        if (variable && variable.imported) document.body.setVariableValue(name, value);
                         return;
                     }
                     if (type === "removeAttribute") {
                         const [name] = argsList[0],
                             variable = document.body.vars[name];
-                        if (variable && variable.imported) document.body.setValue(name, undefined);
+                        if (variable && variable.imported) document.body.setVariableValue(name, undefined);
 
                     }
                 });
@@ -1086,9 +1093,7 @@ const {observe} = (() => {
                     }
                     if (type === "setAttribute") {
                         const [name, value] = [...argsList];
-                        if (iframe.getAttribute(name) !== value + "") {
-                            iframe.setAttribute(name, value);
-                        }
+                        if (iframe.getAttribute(name) !== value + "") iframe.setAttribute(name, value);
                         return;
                     }
                     if (type === "removeAttribute") {
