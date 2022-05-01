@@ -12,7 +12,7 @@ Meanwhile, here is what you get:
 
 1) [Sandboxed remote components](https://lightview.dev/#sandboxed-components) and micro front ends</a>.
 
-1) [Unit testable](https://lightview.dev/##unit-testing) components and a [debug mode](https://lightview.dev/##debugging) for using standard JavaScript debuggers</a>.
+1) [Unit testable](https://lightview.dev/#unit-testing) components and a [debug mode](https://lightview.dev/#debugging) for using standard JavaScript debuggers</a>.
 
 1) No pre-deployment transpilation/compilation required.
 
@@ -20,15 +20,15 @@ Meanwhile, here is what you get:
 
 1) Extended variable type declarations including `min`, `max` and `step` on `number` or limits on `string` and `array` lengths.
 
-1) [TypeScript like](https://lightview.dev/##variables) runtime type checking of variables in components.
+1) [TypeScript like](https://lightview.dev/#variables) runtime type checking of variables in components.
 
 1) Automatic server retrieval and update of variables declared as `remote`.
 
-1) Automatic import, export, cross-component sync, or reactive response to attributes/props/variables. See [superVariable](https://lightview.dev/##super-variable).
+1) Automatic import, export, cross-component sync, or reactive response to attributes/props/variables. See [superVariable](https://lightview.dev/#super-variable).
 
-1) [Automatic form variable creation and binding](https://lightview.dev/##auto-binding-forms).
+1) [Automatic form variable creation and binding](https://lightview.dev/#auto-binding-forms).
 
-1) [Attribute directives](https://lightview.dev/##attribute-directives) like `l-if`, and a single powerful `l-for` that handles array and object keys, values, and entries.
+1) [Attribute directives](https://lightview.dev/#attribute-directives) like `l-if`, and a single powerful `l-for` that handles array and object keys, values, and entries.
 
 1) Reactive string template literals for content and attribute value replacement.
 
