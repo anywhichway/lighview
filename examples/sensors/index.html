@@ -1,10 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
 <head>
-    <meta charset="UTF-8">
     <title>Lightview:Sensor Demo</title>
+    <link href="../../components/gauge.html" rel="module">
+    <script src="../../lightview.js?as=x-body"></script>
 </head>
 <body>
+<div style="width:100%;text-align:center">
+<div style="display:inline-block">
+<l-gauge id="sensor1" type="Gauge" label="Sensor One" value="50"></l-gauge>
+</div>
 
+<div style="display:inline-block">
+<l-gauge id="sensor2" type="Gauge" label="Sensor Two" value="50"></l-gauge>
+</div>
+</div>
+
+<script type="lightview/module">
+    const {remote} = await import("../../types.js");
+    self.variables({sensor1:"number"},{remote:remote({ttl:5000,path:"https://lightview.dev/sensors/sensor1"})});
+    self.variables({sensor2:"number"},{remote:remote({ttl:7500,path:"https://lightview.dev/sensors/sensor2"})});
+    await sensor1;
+    await sensor2;
+    addEventListener("change",({variableName,value}) => {
+        const sensor = document.body.getElementById(variableName);
+        sensor.setValue(value);
+    });
+</script>
 </body>
 </html>

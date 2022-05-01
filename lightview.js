@@ -251,7 +251,7 @@ const {observe} = (() => {
                         target.postEvent.value("change", event);
                         if (event.defaultPrevented) {
                             target[property].value = value;
-                        } else if(remote) {
+                        } else if(remote && remote.put) {
                             remote.handleRemote({variable,config:remote.config,reactive},true);
                         }
                     }
@@ -688,11 +688,9 @@ const {observe} = (() => {
             }
             adoptedCallback(callback) {
                 this.vars.postEvent.value("adopted");
-                super.adoptedCallback();
             }
             disconnectedCallback() {
                 this.vars.postEvent.value("disconnected");
-                super.disconnectedCallback();
             }
             get observedAttributes() {
                 return CustomElement.observedAttributes;
@@ -704,6 +702,10 @@ const {observe} = (() => {
             getVariableNames() {
                 return Object.keys(this.vars)
                     .filter(name => !(name in reserved) && !["self", "addEventListener", "postEvent"].includes(name))
+            }
+
+            getVariable(name) {
+                return this.vars[name] ? {...this.vars[name]} : undefined;
             }
 
             setVariableValue(variableName, value, {coerceTo = typeof (value)} = {}) {
@@ -778,7 +780,7 @@ const {observe} = (() => {
                             if (remote) {
                                 if(typeof(remote)==="function") remote = remote(`./${key}`);
                                 variable.remote = remote;
-                                remote.handleRemote({variable, config:remote.config, reactive});
+                                remote.handleRemote({variable, config:remote.config, reactive,component:this});
                             }
                             if(type.validate) type.validate(variable.value,variable);
                         });

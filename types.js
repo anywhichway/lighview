@@ -309,7 +309,7 @@ symbol.validate = validateSymbol;
 symbol.coerce = false;
 symbol.required = false;
 
-const remoteProxy = ({json, variable,config, reactive}) => {
+const remoteProxy = ({json, variable,config, reactive, component}) => {
     const type = typeof (config);
     return new Proxy(json, {
         get(target,property) {
@@ -352,7 +352,8 @@ const remoteProxy = ({json, variable,config, reactive}) => {
                                 })
                             }
                         } else {
-                            variable.value = json;
+                            component.setVariableValue(variable.name,newjson)
+                            //variable.value = json;
                         }
                     })
                 }
@@ -393,7 +394,7 @@ const put = (href,variable) => {
     })
 }
 
-const handleRemote = async ({variable, config, reactive},doput) => {
+const handleRemote = async ({variable, config, reactive, component},doput) => {
     const type = typeof (config);
     let value;
     if (type === "string") {
@@ -401,33 +402,36 @@ const handleRemote = async ({variable, config, reactive},doput) => {
         value = (doput
             ? put(href,variable)
             : get(href,variable));
-        if(variable.value===undefined) variable.value = value;
+        if(variable.value===undefined) variable.value = value; // do not await here
     } else if (remote && type === "object") {
         let href;
+        if(!config.path) config.path = `./${variable.name}`;
         if(config.path) href = new URL(config.path,window.location.href).href;
         if(!config.get || !config.put) {
-            if(!href) throw new Error(`A remote path is required is no put function is provided for remote data`)
+            if(!href) throw new Error(`A remote path is required if no put function is provided for remote data`)
             if(!config.get) config.get = get;
-            if(!config.put) config.put = put;
+            if(!config.put && reactive) config.put = put;
         }
         value = (doput
             ? config.put(href,variable)
             : config.get(href,variable));
         if(config.ttl && !doput && !config.intervalId) {
             config.intervalId = setInterval(async () => {
-                await handleRemote({variable, config, reactive});
-            })
+                await handleRemote({variable, config, reactive, component});
+                //schedule();
+            },config.ttl);
         }
         if(variable.value===undefined) variable.value = value;
     }
     if(value) {
-        variable.value = await value.then((json) => {
+        const json = await value;
+       //value.then((json) => {
             if (json && typeof (json) === "object" && reactive) {
-                return remoteProxy({json, variable,config, reactive})
+                variable.value = remoteProxy({json, variable,config, reactive, component});
             } else {
-                return json;
+                component.setVariableValue(variable.name,json);
             }
-        })
+        //})
     }
 }
 
