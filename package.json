@@ -1,6 +1,6 @@
 {
   "name": "lightview",
-  "version": "1.6.3b",
+  "version": "1.6.4b",
   "description": "Small, simple, powerful web UI and micro front end creation ... Great ideas from Svelte, React, Vue and Riot combined.",
   "main": "lightview.js",
   "scripts": {

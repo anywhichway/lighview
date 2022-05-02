@@ -241,10 +241,13 @@ const {observe} = (() => {
                 const variable = target[property],
                     {type, value, shared, exported, constant, reactive, remote} = variable;
                 if (constant) throw new TypeError(`${property}:${type} is a constant`);
-                newValue = type.validate ? type.validate(newValue,target[property]) : coerce(newValue,type);
+                if(newValue!=null || type.required) newValue = type.validate ? type.validate(newValue,target[property]) : coerce(newValue,type);
                 const newtype = typeof (newValue),
                     typetype = typeof (type);
-                if (newValue == null || type === "any" || (newtype === type && typetype==="string") || (typetype === "function" && (newValue && newtype === "object" && newValue instanceof type) || variable.validityState?.valid)) {
+                if ((newValue == null && !type.required) ||
+                    type === "any" ||
+                    (newtype === type && typetype==="string") ||
+                    (typetype === "function" && !type.validate && (newValue && newtype === "object" && newValue instanceof type) || variable.validityState?.valid)) {
                     if (value !== newValue) {
                         event.oldValue = value;
                         target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
@@ -260,7 +263,7 @@ const {observe} = (() => {
                 if (typetype === "function" && newValue && newtype === "object") {
                     throw new TypeError(`Can't assign instance of '${newValue.constructor.name}' to variable '${property}:${type.name.replace("bound ", "")}'`)
                 }
-                throw new TypeError(`Can't assign '${typeof (newValue)} ${newtype === "string" ? '"' + newValue + '"' : newValue}' to variable '${property}:${typetype === "function" ? type.name.replace("bound ", "") : type}'`)
+                throw new TypeError(`Can't assign '${typeof (newValue)} ${newtype === "string" ? '"' + newValue + '"' : newValue}' to variable '${property}:${typetype === "function" ? type.name.replace("bound ", "") : type} ${type.required ? "required" : ""}'`)
             },
             keys() {
                 return [...Object.keys(vars)];
@@ -339,7 +342,7 @@ const {observe} = (() => {
         }
         return nodes;
     }
-    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+
     const resolveNodeOrText = (node, component, safe) => {
         const type = typeof (node),
             template = type === "string" ? node.trim() : node.template;
@@ -782,7 +785,7 @@ const {observe} = (() => {
                                 variable.remote = remote;
                                 remote.handleRemote({variable, config:remote.config, reactive,component:this});
                             }
-                            if(type.validate) type.validate(variable.value,variable);
+                            if(type.validate && variable.value!==undefined) type.validate(variable.value,variable);
                         });
                 }
                 return Object.entries(this.vars)

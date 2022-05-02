@@ -1,3 +1,23 @@
+const toJSON = (value) => {
+        if([-Infinity,Infinity].includes(value)) return `@${value}`;
+        if(typeof(value)==="number" && isNaN(value)) return "@NaN";
+        if(value && typeof(value)==="object") {
+            return Object.entries(value)
+                .reduce((json,[key,value]) => {
+                    if(value && typeof(value)==="object" && value.toJSON) value = value.toJSON();
+                    json[key] = toJSON(value);
+                    return json;
+                },Array.isArray(value) ? [] : {})
+        }
+        return value;
+    };
+function reviver(property,value) {
+    if(value==="@-Infinity") return -Infinity;
+    if(value==="@Infinity") return Infinity;
+    if(value==="@NaN") return NaN;
+   return value;
+}
+
 function ValidityState(options) {
     if(!this || !(this instanceof ValidityState)) return new ValidityState(options);
     Object.assign(this,{
@@ -15,9 +35,17 @@ function ValidityState(options) {
     },options);
 }
 
+function DataType(options) {
+    if(!this || !(this instanceof DataType)) return new DataType(options);
+    Object.assign(this,options);
+}
+DataType.prototype.toJSON = function() {
+    return toJSON(this);
+}
+
 const tryParse = (value) => {
     try {
-        return JSON.parse(value+"")
+        return JSON.parse(value+"",reviver)
     } catch(e) {
 
     }
@@ -25,7 +53,7 @@ const tryParse = (value) => {
 
 const ifInvalid = (variable) => {
     variable.validityState.type = typeof(variable.type)==="string" ? variable.type : variable.type.type;
-    throw new TypeError(JSON.stringify(variable));
+    throw new TypeError(JSON.stringify(DataType(variable)));
     // or could return existing value variable.value
     // or could return nothing
 }
@@ -99,6 +127,7 @@ const array = ({coerce=false, required = false,whenInvalid = ifInvalid,maxlength
     }
 }
 array.validate = validateArray;
+array.whenInvalid = ifInvalid;
 array.coerce = false;
 array.required = false;
 
@@ -110,7 +139,7 @@ const validateBoolean  = function(value,variable) {
     if(this.required && value==null) {
         variable.validityState = ValidityState({valueMissing: true});
     } else {
-        const result = !!(this.coerce ? tryParse(value) : value);
+        const result = this.coerce ? tryParse(value) : value;
         if(typeof(result)!=="boolean") {
             variable.validityState = ValidityState({typeMismatch: true, value});
         } else {
@@ -135,6 +164,7 @@ const boolean = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest})
     }
 }
 boolean.validate = validateBoolean;
+boolean.whenInvalid = ifInvalid;
 boolean.coerce = false;
 boolean.required = false;
 
@@ -186,11 +216,12 @@ const number = ({coerce=false,required = false,whenInvalid = ifInvalid,min=-Infi
     }
 }
 number.validate = validateNumber;
+number.whenInvalid = ifInvalid;
 number.min = -Infinity;
 number.max = Infinity;
 number.coerce = false;
 number.required = false;
-number.allwNaN = true;
+number.allowNaN = true;
 number.step = 1;
 
 const validateObject  = function(value,variable) {
@@ -225,6 +256,7 @@ const object = ({coerce=false, required = false,whenInvalid = ifInvalid,...rest}
     }
 }
 object.validate = validateObject;
+object.whenInvalid = ifInvalid;
 object.coerce = false;
 object.required = false;
 
@@ -269,6 +301,7 @@ const string = ({coerce=false, required = false,whenInvalid = ifInvalid, maxleng
     }
 }
 string.validate = validateString;
+string.whenInvalid = ifInvalid;
 string.coerce = false;
 string.required = false;
 string.maxlength = Infinity;
@@ -306,6 +339,7 @@ const symbol = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}) 
     }
 }
 symbol.validate = validateSymbol;
+symbol.whenInvalid = ifInvalid;
 symbol.coerce = false;
 symbol.required = false;
 
@@ -442,4 +476,4 @@ const remote = (config) => {
     }
 }
 
-export {ValidityState,any,array,boolean,number,string,symbol,remote}
+export {ValidityState,any,array,boolean,number,object,string,symbol,remote,reviver}

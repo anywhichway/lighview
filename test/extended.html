@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Extended</title>
+    <script src="../lightview.js?as=x-body"></script>
+</head>
+<body>
+<script type="lightview/module">
+const {array,boolean,number,object,string} = await import("../types.js");
+
+self.variables({strictarray:array},{set:[]});
+self.variables({strictboolean:boolean},{set:true});
+self.variables({strictnumber:number},{set:0});
+self.variables({strictobject:object},{set:{}});
+self.variables({strictstring:string},{set:"test"});
+
+
+self.variables({requiredarray:array({required:true})});
+self.variables({requiredboolean:boolean({required:true})});
+self.variables({requirednumber:number({required:true})});
+self.variables({requiredobject:object({required:true})});
+self.variables({requiredstring:string({required:true})});
+
+//self.setVariableValue("requirednumber",null);
+
+</script>
+</body>
+</html>
