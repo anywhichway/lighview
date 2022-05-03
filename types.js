@@ -1,21 +1,21 @@
 const toJSON = (value) => {
-        if([-Infinity,Infinity].includes(value)) return `@${value}`;
-        if(typeof(value)==="number" && isNaN(value)) return "@NaN";
-        if(value && typeof(value)==="object") {
-            return Object.entries(value)
-                .reduce((json,[key,value]) => {
-                    if(value && typeof(value)==="object" && value.toJSON) value = value.toJSON();
-                    json[key] = toJSON(value);
-                    return json;
-                },Array.isArray(value) ? [] : {})
-        }
-        return value;
-    };
+    if([-Infinity,Infinity].includes(value)) return `@${value}`;
+    if(typeof(value)==="number" && isNaN(value)) return "@NaN";
+    if(value && typeof(value)==="object") {
+        return Object.entries(value)
+            .reduce((json,[key,value]) => {
+                if(value && typeof(value)==="object" && value.toJSON) value = value.toJSON();
+                json[key] = toJSON(value);
+                return json;
+            },Array.isArray(value) ? [] : {})
+    }
+    return value;
+};
 function reviver(property,value) {
     if(value==="@-Infinity") return -Infinity;
     if(value==="@Infinity") return Infinity;
     if(value==="@NaN") return NaN;
-   return value;
+    return value;
 }
 
 function ValidityState(options) {
@@ -438,9 +438,9 @@ const handleRemote = async ({variable, config, reactive, component},doput) => {
             : get(href,variable));
         if(variable.value===undefined) variable.value = value; // do not await here
     } else if (remote && type === "object") {
-        let href;
         if(!config.path) config.path = `./${variable.name}`;
-        if(config.path) href = new URL(config.path,window.location.href).href;
+        if(config.path.endsWith("/")) config.path = `${config.path}${variable.name}`;
+        const href = new URL(config.path,window.location.href).href;
         if(!config.get || !config.put) {
             if(!href) throw new Error(`A remote path is required if no put function is provided for remote data`)
             if(!config.get) config.get = get;
@@ -459,12 +459,12 @@ const handleRemote = async ({variable, config, reactive, component},doput) => {
     }
     if(value) {
         const json = await value;
-       //value.then((json) => {
-            if (json && typeof (json) === "object" && reactive) {
-                variable.value = remoteProxy({json, variable,config, reactive, component});
-            } else {
-                component.setVariableValue(variable.name,json);
-            }
+        //value.then((json) => {
+        if (json && typeof (json) === "object" && reactive) {
+            variable.value = remoteProxy({json, variable,config, reactive, component});
+        } else {
+            component.setVariableValue(variable.name,json);
+        }
         //})
     }
 }

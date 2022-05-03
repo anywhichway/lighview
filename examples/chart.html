@@ -50,15 +50,17 @@
 </l-chart>
 <script>
     const gauges = document.getElementById("myGauges");
-    setInterval(function() {
-        gauges.setValue(0, 1, 40 + Math.round(60 * Math.random()));
-    }, 6000);
-    setInterval(function() {
-        gauges.setValue(1, 1, 40 + Math.round(60 * Math.random()));
-    }, 5000);
-    setInterval(function() {
-        gauges.setValue(2, 1, 60 + Math.round(40 * Math.random()));
-    }, 7500);
+    gauges.addEventListener("connected",() => {
+        setInterval(function() {
+            gauges.setValue(0, 1, 40 + Math.round(60 * Math.random()));
+        }, 6000);
+        setInterval(function() {
+            gauges.setValue(1, 1, 40 + Math.round(60 * Math.random()));
+        }, 5000);
+        setInterval(function() {
+            gauges.setValue(2, 1, 60 + Math.round(40 * Math.random()));
+        }, 7500);
+    })
 </script>
 </body>
 </html>

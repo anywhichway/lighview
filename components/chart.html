@@ -23,7 +23,7 @@
         });
     let chart,
         datatable,
-        options;
+        options = {};
     self.variables({type: "string", title: "string", style: "string"}, {observed});
     if(style) target.setAttribute("style",style);
     self.addRow = (row) => {
@@ -35,6 +35,9 @@
             datatable.setValue(row,col,value);
             chart.draw(datatable, options);
         }
+    };
+    self.setOptions = (newOptions) => {
+      Object.assign(options,newOptions);
     };
     self.init = () => {
         const node = self.firstChild,
@@ -48,9 +51,7 @@
                     target.innerText = e + newValue;
                 }
             };
-        options = {
-            title: title
-        };
+        if(!options.title && title) options.title = title;
         chart = new google.visualization[type](target);
         node.characterDataMutationCallback = callback;
         callback(node, node.textContent, node.textContent);
@@ -67,7 +68,7 @@
         resizeObserver.observe(target);
         self.removeAttribute("hidden");
     };
-    addEventListener("connected", ({target}) => {
+    self.addEventListener("connected", ({target}) => {
         google.charts.load("current", {"packages": ["corechart","gauge"]});
         google.charts.setOnLoadCallback(self.init);
     });

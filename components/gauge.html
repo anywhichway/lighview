@@ -48,7 +48,7 @@
         resizeObserver.observe(target);
         self.removeAttribute("hidden");
     };
-    addEventListener("connected", ({target}) => {
+    self.addEventListener("connected", ({target}) => {
         google.charts.load("current", {"packages": ["corechart","gauge"]});
         google.charts.setOnLoadCallback(self.init);
     });
