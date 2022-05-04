@@ -14,15 +14,18 @@ self.variables({strictboolean:boolean},{set:true});
 self.variables({strictnumber:number},{set:0});
 self.variables({strictobject:object},{set:{}});
 self.variables({strictstring:string},{set:"test"});
+self.variables({extendedarray:array({required:true,minlength:2,maxlength:3})});
+self.variables({extendedboolean:boolean({required:true})});
+self.variables({extendednumber:number({required:true,min:1,max:4,step:2,allowNaN:false})});
+self.variables({extendedobject:object({required:true})});
+self.variables({extendedstring:string({required:true,minlength:2,maxlength:4})});
 
+self.variables({allowNaNnumber:number({min:null,max:null,step:null})});
+self.variables({noNaNnumber:number({allowNaN:false})});
 
-self.variables({requiredarray:array({required:true})});
-self.variables({requiredboolean:boolean({required:true})});
-self.variables({requirednumber:number({required:true})});
-self.variables({requiredobject:object({required:true})});
-self.variables({requiredstring:string({required:true})});
-
-//self.setVariableValue("requirednumber",null);
+//debugger;
+//self.setVariableValue("extendedarray",[]);
+//console.log(typeof(extendedarray),extendedarray);
 
 </script>
 </body>

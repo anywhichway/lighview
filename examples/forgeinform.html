@@ -27,7 +27,9 @@
         <option>tomato</option>
         <option>cheese</option>
     </select>
+    <br><button l-on:click="placeOrder">Place Order</button>
     </p>
+    Expose: <input type="checkbox" value="${checked}">
     <p l-if="${checked}">
         Now you've done it. You've exposed me.
     </p>
@@ -45,24 +47,43 @@
     </p>
 </div>
 <script type="lightview/module">
+    const orders = [];
     self.variables({
-      color: "string",
-      checked: "boolean",
-      hamburger: Array
+      checked: "boolean"
     }, {
       reactive
     });
-    color = "green";
-    checked = true;
-    hamburger = ["lettuce"];
+    self.variables({
+      color: "string",
+      hamburger: Array
+    }, {
+      reactive, exported
+    });
+    self.addEventListener("connected",() => {
+        color = "green";
+        checked = true;
+        hamburger = ["lettuce"];
+    });
+    self.placeOrder = () => {
+        orders.push(hamburger);
+        message = {hamburger};
+    };
     // demo instrumentation
     const variableValues = () => {
       const el = self.getElementById("variables");
       while (el.lastElementChild) el.lastElementChild.remove();
       self.getVariableNames().forEach((name) => {
-        const line = document.createElement("div");
-        line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
-        el.appendChild(line);
+         const line = document.createElement("div");
+         line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
+         el.appendChild(line);
+      });
+      const line = document.createElement("div");
+      line.innerText = "Previous Orders";
+      el.appendChild(line);
+      orders.forEach((order) => {
+         const line = document.createElement("div");
+            line.innerText = JSON.stringify(order);
+            el.appendChild(line);
       });
     };
     variableValues();

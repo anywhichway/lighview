@@ -253,18 +253,196 @@ describe('Lightview - Variables', () => {
         expect(validityState.value).toBe(0);
     });
 
-    test('requirednumber - should throw and not allow null', async () => {
+    test('extendedarray - should respect minlength', async () => {
         const result = await page.evaluate(() => {
             try {
-                document.body.setVariableValue("requirednumber",null);
+                document.body.setVariableValue("extendedarray",[]);
             } catch(e) {
                 return e.message;
             }
-            return document.body.getVariableValue("requirednumber")
+            return document.body.getVariableValue("extendedarray")
         });
         const {name,validityState} = JSON.parse(result,reviver);
-        expect(name).toBe("requirednumber");
+        expect(name).toBe("extendedarray");
+        expect(validityState.tooShort).toBe(true);
+    });
+
+    test('extendedarray - should respect maxlength', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendedarray",[1,2,3,4,5]);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendedarray")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendedarray");
+        expect(validityState.tooLong).toBe(true);
+    });
+
+    test('extendedarray - should throw and not allow null', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendedarray",null);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendedarray")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendedarray");
         expect(validityState.valueMissing).toBe(true);
+    });
+
+    test('extendednumber - should throw and not allow null', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendednumber",null);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendednumber")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendednumber");
+        expect(validityState.valueMissing).toBe(true);
+    });
+
+    test('extendednumber - should throw and not allow NaN', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendednumber",NaN);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendednumber")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendednumber");
+        expect(validityState.badInput).toBe(true);
         //expect(validityState.value).toBe(null);
+    });
+
+    test('extendednumber - should respect min', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendednumber",0);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendednumber")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendednumber");
+        expect(validityState.rangeUnderflow).toBe(true);
+    });
+
+    test('extendednumber - should allow between and allow step', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendednumber",4);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendednumber")
+        });
+        expect(result).toBe(4);
+    });
+
+    test('extendednumber - should respect max', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendednumber",5);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendednumber")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendednumber");
+        expect(validityState.rangeOverflow).toBe(true);
+    });
+
+    test('extendednumber - should respect step', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendednumber",3);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendednumber")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendednumber");
+        expect(validityState.rangeUnderflow).toBe(true);
+    });
+
+    test('allowNaNnumber - should allow NaN', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("allowNaNnumber",NaN);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("allowNaNnumber")
+        });
+        expect(typeof(result)==="number" && isNaN(result)).toBe(true);
+    });
+
+    test('noNaNnumber - should not allow NaN', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("noNaNnumber",NaN);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("noNaNnumber")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("noNaNnumber");
+        expect(validityState.badInput).toBe(true);
+    });
+
+    test('extendedstring - should respect minlength', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendedstring","a");
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendedstring")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendedstring");
+        expect(validityState.tooShort).toBe(true);
+    });
+
+    test('extendedstring - should respect maxlength', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendedstring","abcdefg");
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendedstring")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendedstring");
+        expect(validityState.tooLong).toBe(true);
+    });
+
+    test('extendedstring - should throw and not allow null', async () => {
+        const result = await page.evaluate(() => {
+            try {
+                document.body.setVariableValue("extendedstring",null);
+            } catch(e) {
+                return e.message;
+            }
+            return document.body.getVariableValue("extendedstring")
+        });
+        const {name,validityState} = JSON.parse(result,reviver);
+        expect(name).toBe("extendedstring");
+        expect(validityState.valueMissing).toBe(true);
     });
 })

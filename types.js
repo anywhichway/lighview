@@ -108,7 +108,7 @@ const validateArray  = function(value,variable) {
     }
     return this.whenInvalid(variable,value);
 }
-const array = ({coerce=false, required = false,whenInvalid = ifInvalid,maxlength=Infinity,minlength=0,...rest}) => {
+const array = ({coerce=false, required = false,whenInvalid = ifInvalid,maxlength=Infinity,minlength=0,...rest}={}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
     if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
@@ -126,10 +126,7 @@ const array = ({coerce=false, required = false,whenInvalid = ifInvalid,maxlength
         validate: validateArray
     }
 }
-array.validate = validateArray;
-array.whenInvalid = ifInvalid;
-array.coerce = false;
-array.required = false;
+
 
 const validateBoolean  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -149,7 +146,7 @@ const validateBoolean  = function(value,variable) {
     }
     return this.whenInvalid(variable,value);
 }
-const boolean = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}) =>{
+const boolean = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}={}) =>{
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
     if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
@@ -163,10 +160,7 @@ const boolean = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest})
         validate: validateBoolean
     }
 }
-boolean.validate = validateBoolean;
-boolean.whenInvalid = ifInvalid;
-boolean.coerce = false;
-boolean.required = false;
+
 
 const validateNumber  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -178,13 +172,13 @@ const validateNumber  = function(value,variable) {
         const result = this.coerce ? tryParse(value) : value;
         if(typeof(result)!=="number") {
             variable.validityState = ValidityState({typeMismatch:true,value});
-        } else if(isNaN(result) && !allowNaN) {
+        } else if(isNaN(result) && !this.allowNaN) {
             variable.validityState = ValidityState({badInput:true,value});
-        } else if(result<this.min) {
+        } else if(this.min!=null && result<this.min) {
             variable.validityState = ValidityState({rangeUnderflow:true,value});
-        } else if(result>this.max) {
+        } else if(this.max!=null && result>this.max) {
             variable.validityState = ValidityState({rangeOverflow:true,value});
-        }  else if((result % this.step)!==0) {
+        }  else if(this.step!==null && (result % this.step)!==0) {
             variable.validityState = ValidityState({rangeUnderflow:true,value});
         } else {
             variable.validityState = ValidityState({valid:true});
@@ -193,13 +187,13 @@ const validateNumber  = function(value,variable) {
     }
     return this.whenInvalid(variable,value);
 }
-const number = ({coerce=false,required = false,whenInvalid = ifInvalid,min=-Infinity,max=Infinity,step = 1,allowNaN = true,...rest}) => {
+const number = ({coerce=false,required = false,whenInvalid = ifInvalid,min=-Infinity,max=Infinity,step = 1,allowNaN = true,...rest}={}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
     if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
-    if(typeof(min)!=="number") throw new TypeError(`min, ${JSON.stringify(min)}, must be a number`);
-    if(typeof(max)!=="number") throw new TypeError(`max, ${JSON.stringify(max)}, must be a number`);
-    if(typeof(step)!=="number") throw new TypeError(`step, ${JSON.stringify(step)}, must be a number`);
+    if(min!=null && typeof(min)!=="number") throw new TypeError(`min, ${JSON.stringify(min)}, must be a number`);
+    if(max!=null && typeof(max)!=="number") throw new TypeError(`max, ${JSON.stringify(max)}, must be a number`);
+    if(step!=null && typeof(step)!=="number") throw new TypeError(`step, ${JSON.stringify(step)}, must be a number`);
     if(typeof(allowNaN)!=="boolean") throw new TypeError(`step, ${JSON.stringify(allowNaN)}, must be a boolean`);
     if(rest.default!==undefined && typeof(rest.default)!=="number") throw new TypeError(`default, ${rest.default}, must be a number`);
     return {
@@ -215,14 +209,7 @@ const number = ({coerce=false,required = false,whenInvalid = ifInvalid,min=-Infi
         validate: validateNumber
     }
 }
-number.validate = validateNumber;
-number.whenInvalid = ifInvalid;
-number.min = -Infinity;
-number.max = Infinity;
-number.coerce = false;
-number.required = false;
-number.allowNaN = true;
-number.step = 1;
+
 
 const validateObject  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -241,7 +228,7 @@ const validateObject  = function(value,variable) {
     }
     return this.whenInvalid(variable,value);
 }
-const object = ({coerce=false, required = false,whenInvalid = ifInvalid,...rest}) => {
+const object = ({coerce=false, required = false,whenInvalid = ifInvalid,...rest}={}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
     if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
@@ -255,10 +242,7 @@ const object = ({coerce=false, required = false,whenInvalid = ifInvalid,...rest}
         validate: validateObject
     }
 }
-object.validate = validateObject;
-object.whenInvalid = ifInvalid;
-object.coerce = false;
-object.required = false;
+
 
 const validateString  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -281,7 +265,7 @@ const validateString  = function(value,variable) {
     }
     return this.whenInvalid(variable,value);
 }
-const string = ({coerce=false, required = false,whenInvalid = ifInvalid, maxlength = Infinity, minlength = 0, pattern, ...rest}) => {
+const string = ({coerce=false, required = false,whenInvalid = ifInvalid, maxlength = Infinity, minlength = 0, pattern,...rest}={}) => {
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
     if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
@@ -300,12 +284,7 @@ const string = ({coerce=false, required = false,whenInvalid = ifInvalid, maxleng
         validate: validateString
     }
 }
-string.validate = validateString;
-string.whenInvalid = ifInvalid;
-string.coerce = false;
-string.required = false;
-string.maxlength = Infinity;
-string.minlength = 0;
+
 
 const validateSymbol  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -324,7 +303,7 @@ const validateSymbol  = function(value,variable) {
     }
     return this.whenInvalid(variable,value);
 }
-const symbol = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}) =>{
+const symbol = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}={}) =>{
     if(typeof(coerce)!=="boolean") throw new TypeError(`coerce, ${JSON.stringify(coerce)}, must be a boolean`);
     if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
     if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
@@ -338,10 +317,6 @@ const symbol = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}) 
         validate: validateSymbol
     }
 }
-symbol.validate = validateSymbol;
-symbol.whenInvalid = ifInvalid;
-symbol.coerce = false;
-symbol.required = false;
 
 const remoteProxy = ({json, variable,config, reactive, component}) => {
     const type = typeof (config);
@@ -428,7 +403,7 @@ const put = (href,variable) => {
     })
 }
 
-const handleRemote = async ({variable, config, reactive, component},doput) => {
+const handleRemote = async ({variable, functionalType, config=functionalType, component},doput) => {
     const type = typeof (config);
     let value;
     if (type === "string") {
@@ -444,14 +419,14 @@ const handleRemote = async ({variable, config, reactive, component},doput) => {
         if(!config.get || !config.put) {
             if(!href) throw new Error(`A remote path is required if no put function is provided for remote data`)
             if(!config.get) config.get = get;
-            if(!config.put && reactive) config.put = put;
+            if(!config.put && variable.reactive) config.put = put;
         }
         value = (doput
             ? config.put(href,variable)
             : config.get(href,variable));
         if(config.ttl && !doput && !config.intervalId) {
             config.intervalId = setInterval(async () => {
-                await handleRemote({variable, config, reactive, component});
+                await handleRemote({variable, config, component});
                 //schedule();
             },config.ttl);
         }
@@ -459,13 +434,11 @@ const handleRemote = async ({variable, config, reactive, component},doput) => {
     }
     if(value) {
         const json = await value;
-        //value.then((json) => {
-        if (json && typeof (json) === "object" && reactive) {
-            variable.value = remoteProxy({json, variable,config, reactive, component});
+        if (json && typeof (json) === "object" && variable.reactive) {
+            variable.value = remoteProxy({json, variable,config, component});
         } else {
             component.setVariableValue(variable.name,json);
         }
-        //})
     }
 }
 
@@ -476,4 +449,6 @@ const remote = (config) => {
     }
 }
 
-export {ValidityState,any,array,boolean,number,object,string,symbol,remote,reviver}
+const remoteGenerator = handleRemote;
+
+export {ValidityState,any,array,boolean,number,object,remote,remoteGenerator,string,symbol,reviver}

@@ -40,13 +40,15 @@ const {observe} = (() => {
     Lightview.sanitizeTemplate = templateSanitizer;
 
     const escaper = document.createElement('textarea');
-
     function escapeHTML(html) {
         escaper.textContent = html;
         return escaper.innerHTML;
     }
-
     Lightview.escapeHTML = escapeHTML;
+
+    const isArrowFunction = (f) => {
+        return typeof(f)==="function" && (f+"").match(/\(*.*\)*\s*=>/g)
+    }
 
     const addListener = (node, eventName, callback) => {
         node.addEventListener(eventName, callback); // just used to make code footprint smaller
@@ -226,7 +228,8 @@ const {observe} = (() => {
                 if(target instanceof Date) {
                     return Reflect.get(target,property);
                 }
-                let {value} = target[property] || {};
+                let {value,get} = target[property] || {};
+                if(get) return target[property].value = get.call(target[property]);
                 if (typeof (value) === "function") return value.bind(target);
                 return value;
             },
@@ -239,7 +242,8 @@ const {observe} = (() => {
                     return true;
                 }
                 const variable = target[property],
-                    {type, value, shared, exported, constant, reactive, remote} = variable;
+                    {value, shared, exported, constant, reactive, remote} = variable;
+                let type = variable.type;
                 if (constant) throw new TypeError(`${property}:${type} is a constant`);
                 if(newValue!=null || type.required) newValue = type.validate ? type.validate(newValue,target[property]) : coerce(newValue,type);
                 const newtype = typeof (newValue),
@@ -254,8 +258,10 @@ const {observe} = (() => {
                         target.postEvent.value("change", event);
                         if (event.defaultPrevented) {
                             target[property].value = value;
-                        } else if(remote && remote.put) {
-                            remote.handleRemote({variable,config:remote.config,reactive},true);
+                        } else if(remote && (variable.reactive || remote.put)) {
+                            remote.handleRemote({variable,config:remote.config},true);
+                        } else if(variable.set) {
+                            variable.set(newValue);
                         }
                     }
                     return true;
@@ -386,7 +392,8 @@ const {observe} = (() => {
             if (variable.type === "any" || variable.type === "unknown") variable.type = type;
             else throw new TypeError(`Attempt to bind <input name="${variableName}" type="${type}"> to variable ${variableName}:${variable.type}`)
         }
-        component.variables({[variableName]: type},{reactive:true});
+        const existing = component.vars[variableName];
+        if(!existing || existing.type!==type || !existing.reactive) component.variables({[variableName]: type},{reactive});
         if(inputtype!=="radio") {
             if(value.includes("${")) input.attributes.value.value = "";
             else component.setVariableValue(variableName, coerce(value,type));
@@ -419,12 +426,88 @@ const {observe} = (() => {
             return value;
         }
     }
+    const observed = () => {
+        return {
+            init({variable, component}) {
+                const name = variable.name;
+                variable.value = component.hasAttribute(name) ? coerce(component.getAttribute(name), variable.type) : variable.value;
+                variable.observed = true;
+                component.observedAttributes.add(variable.name);
+            }
+        }
+    }
+    const reactive = () => {
+        return {
+            init({variable, component}) {
+                variable.reactive = true;
+                component.vars[variable.name] = Reactor(variable);
+            }
+        }
+    }
+    const shared = () => {
+        return {
+            init({variable, component}) {
+                variable.shared = true;
+                /*addEventListener("change", ({variableName, value}) => {
+                    if (variableName===variable.name && component.vars[variableName]?.shared) component.siblings.forEach((instance) => instance.setVariableValue(variableName, value))
+                })*/
+                variable.set = function(newValue) {
+                    if(component.vars[this.name]?.shared) component.siblings.forEach((instance) => instance.setVariableValue(this.name, newValue));
+                }
+            }
+        }
+    }
+    const exported = () => {
+        return {
+            init({variable, component}) {
+                const name = variable.name;
+                variable.exported = true;
+                variable.set = (newValue) => {
+                    if(variable.exported) {
+                        if(newValue==null) {
+                            removeComponentAttribute(component, name);
+                        } else {
+                            newValue = typeof (newValue) === "string" ? newValue : JSON.stringify(newValue);
+                            setComponentAttribute(component, name, newValue);
+                        }
+                    }
+                }
+                variable.set(variable.value);
+                //component.changeListener.targets.add(name);
+            }
+        }
+    }
+    const imported = () => {
+        return {
+            init({variable, component}) {
+                const name = variable.name;
+                variable.imported = true;
+                variable.value = component.hasAttribute(name) ? coerce(component.getAttribute(name), variable.type) : variable.value;
+            }
+        }
+    }
+
     let reserved = {
-        observed: {value: true, constant: true},
-        reactive: {value: true, constant: true},
-        shared: {value: true, constant: true},
-        exported: {value: true, constant: true},
-        imported: {value: true, constant: true}
+        observed: {
+            constant: true,
+            value: observed
+        },
+        reactive: {
+            constant: true,
+            value: reactive
+        },
+        shared: {
+            constant: true,
+            value: shared
+        },
+        exported: {
+            constant: true,
+            value: exported
+        },
+        imported: {
+            constant: true,
+            value: imported
+        }
     };
     const createClass = (domElementNode, {observer, framed}) => {
         const instances = new Set(),
@@ -446,14 +529,14 @@ const {observe} = (() => {
                     shadow = this.attachShadow({mode: "open"}),
                     eventlisteners = {};
                 // needs to be local to the instance
-                Object.defineProperty(this,"changeListener",{value:
+                /*Object.defineProperty(this,"changeListener",{value:
                         function({variableName, value}) {
-                            if (currentComponent.changeListener.targets.has(variableName)) {
+                            //if (currentComponent.changeListener.targets.has(variableName)) {
                                 value = typeof (value) === "string" || !value ? value : JSON.stringify(value);
                                 if (value == null) removeComponentAttribute(currentComponent, variableName);
                                 else setComponentAttribute(currentComponent, variableName, value);
-                            }
-                        }});
+                           // }
+                        }});*/
                 this.vars = {
                     ...reserved,
                     addEventListener: {
@@ -481,9 +564,9 @@ const {observe} = (() => {
                 };
                 this.defaultAttributes = domElementNode.tagName === "TEMPLATE" ? domElementNode.attributes : dom.attributes;
                 this.varsProxy = createVarsProxy(this.vars, this, CustomElement);
-                this.changeListener.targets = new Set();
-                this.varsProxy.addEventListener("change", this.changeListener);
-                if (framed || CustomElement.lightviewFramed) this.variables({message: Object}, {exported: true});
+                //this.changeListener.targets = new Set();
+                //this.varsProxy.addEventListener("change", this.changeListener);
+                if (framed || CustomElement.lightviewFramed) this.variables({message: Object}, {exported});
                 ["getElementById", "querySelector", "querySelectorAll"]
                     .forEach((fname) => {
                         Object.defineProperty(this, fname, {
@@ -514,15 +597,19 @@ const {observe} = (() => {
                 for (const attr of this.defaultAttributes) this.hasAttribute(attr.name) || this.setAttribute(attr.name, attr.value);
                 const scripts = shadow.querySelectorAll("script"),
                     promises = [];
-                // scriptpromises = [];
                 for (const script of [...scripts]) {
                     if (script.attributes.src?.value?.includes("/lightview.js")) continue;
+                    // remove comments;
+                    const text = script.innerHTML.replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1").replaceAll(/\r?\n/g, "");
                     const currentScript = document.createElement("script");
                     if (script.className !== "lightview" && !((script.attributes.type?.value || "").includes("lightview/"))) {
                         for (const attr of script.attributes) currentScript.setAttribute(attr.name,attr.value);
+                        currentScript.innerHTML = text;
                         shadow.appendChild(currentScript);
                         await new Promise((resolve) => {
+                            const timeout = setTimeout(() => resolve(),500);
                             currentScript.onload = () => {
+                                clearTimeout(timeout);
                                 currentScript.remove();
                                 resolve();
                             }
@@ -534,7 +621,6 @@ const {observe} = (() => {
                         currentScript.setAttribute(attr.name, attr.name === "type" ? attr.value.replace("lightview/", "") : attr.value);
                     }
                     currentScript.classList.remove("lightview");
-                    const text = script.innerHTML.replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1").replaceAll(/\r?\n/g, "");
                     currentScript.innerHTML = `Object.getPrototypeOf(async function(){}).constructor('if(window["${scriptid}"]?.ctx) { const ctx = window["${scriptid}"].ctx; { with(ctx) { ${text}; } } }')().then(() => window["${scriptid}"]()); `;
                     await new Promise((resolve) => {
                         window[scriptid] = () => {
@@ -685,6 +771,7 @@ const {observe} = (() => {
                 shadow.normalize();
                 observer ||= createObserver(ctx, framed);
                 observer.observe(ctx, {attributeOldValue: true, subtree:true, characterData:true, characterDataOldValue:true});
+                if(this.hasAttribute("l-unhide")) this.removeAttribute("hidden");
                 //ctx.vars.postEvent.value("connected");
                 this.dispatchEvent(new Event("connected"));
                 // })
@@ -746,11 +833,13 @@ const {observe} = (() => {
                 return this.vars[variableName]?.value;
             }
 
-            variables(variables, {observed, reactive, shared, exported, imported, remote, constant,set} = {}) { // options = {observed,reactive,shared,exported,imported}
-                const addEventListener = this.varsProxy.addEventListener;
+            variables(variables, {remote, constant,set,...rest} = {}) { // options = {observed,reactive,shared,exported,imported}
+                const options = {remote, constant,...rest},
+                    addEventListener = this.varsProxy.addEventListener;
                 if (variables !== undefined) {
                     Object.entries(variables)
                         .forEach(([key, type]) => {
+                            if(isArrowFunction(type)) type = type();
                             const variable = this.vars[key] ||= {name: key, type};
                             if(set!==undefined && constant!==undefined) throw new TypeError(`${key} has the constant value ${constant} and can't be set to ${set}`);
                             variable.value = set;
@@ -758,35 +847,19 @@ const {observe} = (() => {
                                 variable.constant = true;
                                 variable.value = constant;
                             }
-                            if (observed || imported) {
-                                variable.value = this.hasAttribute(key) ? coerce(this.getAttribute(key), variable.type) : variable.value;
-                                variable.imported = imported;
-                                if(variable.observed) {
-                                    variable.observed = observed;
-                                    this.observedAttributes.add(key);
-                                }
-                            }
-                            if (reactive) {
-                                variable.reactive = true;
-                                this.vars[key] = Reactor(variable);
-                            }
-                            if (shared) {
-                                variable.shared = true;
-                                addEventListener("change", ({variableName, value}) => {
-                                    if (this.vars[variableName]?.shared) this.siblings.forEach((instance) => instance.setVariableValue(variableName, value))
-                                })
-                            }
-                            if (exported) {
-                                variable.exported = true;
-                                // in case the export goes up to an iframe
-                                if (variable.value != null) setComponentAttribute(this, key, variable.value);
-                                this.changeListener.targets.add(key);
-                            }
                             if (remote) {
                                 if(typeof(remote)==="function") remote = remote(`./${key}`);
                                 variable.remote = remote;
-                                remote.handleRemote({variable, config:remote.config, reactive,component:this});
+                                remote.handleRemote({variable, config:remote.config,component:this});
                             }
+                            // todo: handle custom functional types, remote should actually be handled this way
+                            Object.entries(rest).forEach(([type,f]) => {
+                                const functionalType = variable[type] = typeof(f)==="function" ? f() : f;
+                                if(functionalType.init) functionalType.init({variable,options,component:this});
+                                if((rest.get!==undefined || rest.set!==undefined) && constant!==undefined) throw new TypeError(`${key} has the constant value ${constant} and can't have a getter or setter`);
+                                variable.set != functionalType.set;
+                                variable.get != functionalType.get;
+                            });
                             if(type.validate && variable.value!==undefined) type.validate(variable.value,variable);
                         });
                 }
