@@ -1,0 +1,19 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Gauge</title>
+</head>
+<body>
+<div id="target"></div>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
+<script type="lightview/module">
+    const {chart} = await import("/components/components.js");
+    chart(self,{
+      packages:["corechart","gauge"],
+      columns:[{label:"Label",type:"string"},{label:"Value",type:"number"}],
+      type:"Gauge"
+    });
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 </head>
 <body>
 <p>
-    <button l-on:click="bump">Click count:${count}</button>
+    <button l-on:click="${bump}">Click count:${count}</button>
 </p>
 <div style="margin:20px">
     <p>
@@ -23,9 +23,6 @@
     </p>
     <p>
         ${function(){return \${test}})()}
-    </p>
-    <p>
-        ${window.alert("ok")}
     </p>
 </div>
 

@@ -161,6 +161,77 @@ const boolean = ({coerce=false,required=false, whenInvalid = ifInvalid,...rest}=
     }
 }
 
+const isDuration = (value) => {
+    return parseDuration(value)!==undefined;
+}
+const durationMilliseconds = {
+    ms: 1,
+    s: 1000,
+    m: 1000 * 60,
+    h: 1000 * 60 * 60,
+    d: 1000 * 60 * 60 * 24,
+    w: 1000 * 60 * 60 * 24 * 7,
+    mo: (1000 * 60 * 60 * 24 * 365.25)/12,
+    q: (1000 * 60 * 60 * 24 * 365.25)/4,
+    y: (1000 * 60 * 60 * 24 * 365.25)
+}
+const parseDuration = (value) => {
+    if(typeof(value)==="number") return value;
+    if(typeof(value)==="string") {
+        const num = parseFloat(value),
+            suffix = value.substring((num+"").length);
+        if(typeof(num)==="number" && !isNaN(num) && suffix in durationMilliseconds) {
+            return durationMilliseconds[suffix] * num;
+        }
+    }
+    return null;
+}
+
+const validateDuration  = function(value,variable) {
+    const result = parseDuration(value);
+    if(result==null && variable.value===undefined) {
+        return parseDuration(this.default);
+    }
+    if(this.required && result==null) {
+        variable.validityState = ValidityState({valueMissing: true});
+    } else {
+        if(typeof(result)!=="number") {
+            variable.validityState = ValidityState({typeMismatch:true,value});
+        } else if(isNaN(result)) {
+            variable.validityState = ValidityState({badInput:true,value});
+        } else if(this.min!=null && result<parseDuration(this.min)) {
+            variable.validityState = ValidityState({rangeUnderflow:true,value});
+        } else if(this.max!=null && result>parseDuration(this.max)) {
+            variable.validityState = ValidityState({rangeOverflow:true,value});
+        }  else if(this.step!==null && (result % parseDuration(this.step)!==0)) {
+            variable.validityState = ValidityState({rangeUnderflow:true,value});
+        } else {
+            variable.validityState = ValidityState({valid:true});
+            return result;
+        }
+    }
+    return this.whenInvalid(variable,value);
+}
+const duration = ({required = false,whenInvalid = ifInvalid,min=-Infinity,max=Infinity,step = 1,...rest}={}) => {
+    if(typeof(required)!=="boolean") throw new TypeError(`required, ${JSON.stringify(required)}, must be a boolean`);
+    if(typeof(whenInvalid)!=="function") throw new TypeError(`whenInvalid, ${whenInvalid}, must be a function`);
+    if(min!=null && !parseDuration(min)) throw new TypeError(`min, ${JSON.stringify(min)}, must be a duration`);
+    if(max!=null && !parseDuration(max)) throw new TypeError(`max, ${JSON.stringify(max)}, must be a duration`);
+    if(step!=null && !parseDuration(step)) throw new TypeError(`step, ${JSON.stringify(step)}, must be a duration`);
+    if(rest.default!==undefined && !parseDuration(rest.default)) throw new TypeError(`default, ${JSON.stringify(rest.default)}, must be a duration`);
+    return {
+        type: "duration",
+        coerce: false,
+        required,
+        whenInvalid,
+        min,
+        max,
+        step,
+        ...rest,
+        validate: validateDuration
+    }
+}
+duration.parse = parseDuration;
 
 const validateNumber  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -195,7 +266,7 @@ const number = ({coerce=false,required = false,whenInvalid = ifInvalid,min=-Infi
     if(max!=null && typeof(max)!=="number") throw new TypeError(`max, ${JSON.stringify(max)}, must be a number`);
     if(step!=null && typeof(step)!=="number") throw new TypeError(`step, ${JSON.stringify(step)}, must be a number`);
     if(typeof(allowNaN)!=="boolean") throw new TypeError(`step, ${JSON.stringify(allowNaN)}, must be a boolean`);
-    if(rest.default!==undefined && typeof(rest.default)!=="number") throw new TypeError(`default, ${rest.default}, must be a number`);
+    if(rest.default!==undefined && typeof(rest.default)!=="number") throw new TypeError(`default, ${JSON.stringify(rest.default)}, must be a number`);
     return {
         type: "number",
         coerce,
@@ -451,4 +522,4 @@ const remote = (config) => {
 
 const remoteGenerator = handleRemote;
 
-export {ValidityState,any,array,boolean,number,object,remote,remoteGenerator,string,symbol,reviver}
+export {ValidityState,any,array,boolean,duration,number,object,remote,remoteGenerator,string,symbol,reviver}

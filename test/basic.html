@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Basic</title>
-    <template id="x-test" name="joe" open="true" count=1 children='["mary"]' l-on:click="bump">
+    <template id="x-test" name="joe" open="true" count=1 children='["mary"]' l-on:click="${bump}">
+
+        <span id="children">${children}</span>
+
+        <input id="idatetime" type="datetime" value="${idatetime}">
 
         <span id="name">${name}</span>
         <span id="open">${open}</span>
         <span id="count">${count}</span>
-        <span id="children">${children}</span>
+
         <span id="color">${color}</span>
         <span id="checked">${checked}</span>
         <span id="age">${age}</span>
@@ -28,12 +32,12 @@
         <input id="inumber" type="number" value="${inumber}">
         <input id="irange" type="range" value="${irange}">
 
-        <input id="idatetime" type="datetime" value="${idatetime}">
+
 
         <input id="icheckbox" type="checkbox" value="${icheckbox}">
 
         <script type="lightview/module">
-        //debugger;
+       // debugger;
             self.variables({name:"string",open:"boolean",count:"number",children:Array},{imported,reactive});
             self.variables({color:"string",checked:"boolean",age:"number",hamburger:Array},{exported,reactive});
             self.variables({counter:"number"},{reactive});

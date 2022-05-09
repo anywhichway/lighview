@@ -1,0 +1,35 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Gantt</title>
+</head>
+<body>
+<div id="target"></div>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
+<script type="lightview/module">
+    const {chart} = await import("/components/components.js"),
+        {duration} = await import("/types.js");
+    chart(self,{
+      packages:["gantt"],
+      columns:[
+        {label:"Task ID",type:"string"},
+        {label:"Task Name",type:"string"},
+        {label:"Start Date",type:"date"},
+        {label:"End Date",type:"date"},
+        {label:"Duration",type:"number"},
+        {label:"% Complete",type:"number"},
+        {label:"Dependencies",type:"string"}
+        ],
+      type:"Gantt",
+      rowTransform(row) {
+        return row.map((item,index) => {
+          if(item && (index===2 || index===3)) return new Date(item);
+          if(item && index===4) return duration.parse(item);
+          return item;
+        })
+      }
+    });
+</script>
+</body>
+</html>

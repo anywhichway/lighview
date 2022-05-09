@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<head>
+    <title>Chart</title>
+    <link href="../components/timeline.html" rel="module">
+    <script src="../lightview.js"></script>
+</head>
+<body>
+<l-timeline id="myPieChart" style="max-width:750px" type="PieChart" title="How Much Pizza I Ate Last Night">
+    // Chart will resize automatically to a max-width of 750px and repaint on type and title changes.
+    // The component DOM element also exposes a method `el.addRow(row:array)` to dynamically add data
+    // And, `el.init()` will re-render from the initial data and current attributes.
+    [
+        [{ type: 'string', id: 'Position' },{ type: 'string', id: 'Name' },{ type: 'date', id: 'Start' },{ type: 'date', id: 'End' }],
+        [ '1', 'George Washington', '1789-03-30','1797-02-04'] // Date(1789, 3, 30), Date(1797, 2, 4)
+        //[ '2', 'John Adams',        Date(1797, 2, 4),  Date(1801, 2, 4) ],
+        //[ '3', 'Thomas Jefferson',  Date(1801, 2, 4),  Date(1809, 2, 4) ]]);
+    ]
+</l-timeline>
+
+</body>
+</html>

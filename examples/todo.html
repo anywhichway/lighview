@@ -1,0 +1,38 @@
+<html>
+<head>
+    <title>Lightview:Examples:ToDo</title>
+    <script src="../lightview.js?as=x-body"></script>
+</head>
+<body>
+<input type="text" value="${newItem}" placeholder="new todo item...">
+<button l-on:click="${addToList}">Add</button>
+<div l-for="${todoList}">
+    <input value="${item.status}" type="checkbox">
+    <span class="${item.status ? 'checked' : ''}">${item.text}</span>
+    <span l-on:click="({self}) => self.removeFromList(${index})">X>
+    <br/>
+</div>
+<script type="lightview/module">
+   self.variables(
+        { todoList: Array },
+        {
+            reactive,
+            set: [
+                {text: 'Write my first post', status: true},
+                {text: 'Upload the post to the blog', status: false}
+            ]
+        }
+    );
+    self.addToList = () => {
+        todoList = [...todoList, {text: newItem, status: false}];
+        newItem = '';
+    };
+    self.removeFromList = (index) => {
+        todoList.splice(index, 1);
+    };
+</script>
+<style>
+    .checked { text-decoration: line-through; }
+</style>
+</body>
+</html>

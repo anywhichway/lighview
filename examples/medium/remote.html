@@ -15,13 +15,14 @@
 </head>
 <body>
 <!--
-  layout the dashboad using the chart component r-chart
+  layout the dashboard using the chart component r-chart
 -->
 <div style="width:100%;text-align:center">
   <!--
       set the initial value 0 for all components in a relaxed JSON5 configuration data block
+      add the attributes hidden and l-unhide to eliminate flicker and display of Loading ....
   -->
-  <r-chart id="dashboard" style="display:inline-block" type="Gauge" title="Server Status" hidden l-unhide>
+  <r-chart id="dashboard" style="display:inline-block" type="Gauge" title="Server Status">
     [
     ['Label', 'Value'], // gauge will always take two columns, Label and Value
     ['Memory', 0],
