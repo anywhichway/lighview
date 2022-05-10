@@ -143,19 +143,17 @@ const {observe} = (() => {
                             }
                             instance.push(...parsed);
                         } else if (instance instanceof Date) {
-                            const time = Date.parse(value);
-                            if(!isNaN(time)) instance.setTime(time);
-                            else return;
+                            instance.setTime(Date.parse(value));
                         } else {
                             Object.assign(instance, JSON.parse(value));
                         }
-                        /*if (toType !== Date) {
+                        if (toType !== Date) {
                             Object.defineProperty(instance, "constructor", {
                                 configurable: true,
                                 writable: true,
                                 value: toType.prototype.constructor || toType
                             });
-                        }*/
+                        }
                         return instance;
                     }
                     return JSON.parse(value);
@@ -180,10 +178,8 @@ const {observe} = (() => {
                             if (property === "toJSON") return function toJSON() { return [...target]; }
                             if (property === "toString") return function toString() { return JSON.stringify([...target]); }
                         }
+                        if(target instanceof Date) return Reflect.get(target,property);
                         let value = target[property];
-                        if(target instanceof Date && typeof(value)==="function") {
-                            value = value.bind(target);
-                        }
                         const type = typeof (value);
                         if (CURRENTOBSERVER && typeof (property) !== "symbol" && type !== "function") {
                             const observers = dependents[property] ||= new Set();
@@ -276,6 +272,9 @@ const {observe} = (() => {
                     throw new TypeError(`Can't assign instance of '${newValue.constructor.name}' to variable '${property}:${type.name.replace("bound ", "")}'`)
                 }
                 throw new TypeError(`Can't assign '${typeof (newValue)} ${newtype === "string" ? '"' + newValue + '"' : newValue}' to variable '${property}:${typetype === "function" ? type.name.replace("bound ", "") : type} ${type.required ? "required" : ""}'`)
+            },
+            keys() {
+                return [...Object.keys(vars)];
             }
         });
     }
@@ -356,7 +355,7 @@ const {observe} = (() => {
             const name = getTemplateVariableName(template);
             try {
                 let value = (name
-                    ? walk(extras,name.split(".")) || walk(component.varsProxy,name.split(".")) || component[name]
+                    ? component[name] || walk(extras,name.split(".")) || walk(component.varsProxy,name.split("."))
                     : Function("context", "extras", "with(context) { with(extras) { return `" + (safe ? template : Lightview.sanitizeTemplate(template)) + "` } }")(component.varsProxy,extras));
                 //let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(template) + "` }")(component.varsProxy);
                 if(typeof(value)==="function") return value;
@@ -414,7 +413,7 @@ const {observe} = (() => {
             if(!existing || existing.type!==type || !existing.reactive) component.variables({[variableName]: type},{reactive});
             if(inputtype!=="radio") {
                 if(typeof(value)==="string" && value.includes("${")) input.attributes.value.value = "";
-                else if(value!=="") component.setVariableValue(variableName, coerce(value,type));
+                else component.setVariableValue(variableName, coerce(value,type));
             }
         }
         let eventname = "change";
@@ -533,7 +532,7 @@ const {observe} = (() => {
             value: imported
         }
     };
-    const createClass = (domElementNode, {observer, framed}) => {
+    const createClass = (domElementNode, {observer, framed, href}) => {
         const instances = new Set(),
             dom = domElementNode.tagName === "TEMPLATE"
                 ? domElementNode.content.cloneNode(true)
@@ -616,11 +615,11 @@ const {observe} = (() => {
                     promises = [];
                 for (const script of [...scripts]) {
                     if (script.attributes.src?.value?.includes("/lightview.js")) continue;
-                    // remove comments;
                     const text = script.innerHTML
-                        .replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1")
-                        .replaceAll(/\r?\n/g, "")
-                        .replaceAll(/'(([^'\\]|\\.)*)'/g,"\\'$1\\'");
+                        .replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1") // remove comments;
+                        .replaceAll(/\r?\n/g, "") // remove \n
+                        .replaceAll(/import\s*\((\s*["'][\.\/].*["'])\)/g,`import(new URL($1,"${href ? href : window.location.href}").href)`) // handle relative paths
+                        .replaceAll(/'(([^'\\]|\\.)*)'/g,"\\'$1\\'"); // handle quotes
                     const currentScript = document.createElement("script");
                     if (script.className !== "lightview" && !((script.attributes.type?.value || "").includes("lightview/"))) {
                         for (const attr of script.attributes) currentScript.setAttribute(attr.name,attr.value);
@@ -673,7 +672,7 @@ const {observe} = (() => {
                                         if (name) {
                                             const nameparts = name.split(".");
                                             if(node.extras && node.extras[nameparts[0]]) {
-                                               object = node.extras[nameparts[0]];
+                                                object = node.extras[nameparts[0]];
                                             }
                                             if(!this.vars[nameparts[0]] || this.vars[nameparts[0]].reactive || object) {
                                                 bindInput(node, name, this, resolveNodeOrText(attr, this,false,node.extras), object);
@@ -713,7 +712,6 @@ const {observe} = (() => {
                                 }
                                 [...node.attributes].forEach(async (attr) => {
                                     if (attr.name === "value" && attr.template) return;
-                                    attr.template ||= attr.nodeValue?.includes("${") ? attr.nodeValue : undefined;
                                     const {name, value} = attr,
                                         vname = node.attributes.name?.value;
                                     if (name === "type" && value=="radio" && vname) {
@@ -798,10 +796,14 @@ const {observe} = (() => {
                                                     while (node.lastElementChild) node.lastElementChild.remove();
                                                 }
                                             }
+                                            //const nodes = getNodes(parsed.body);
                                             children.forEach((child) => {
+                                                //while (parsed.body.firstChild) {
+                                                //const child = parsed.body.firstChild;
                                                 if (after) node.parentElement.insertBefore(child, node);
                                                 else node.appendChild(child);
                                             })
+                                            //processNodes(nodes);
                                         })
                                     } else if(attr.template) {
                                         observe(() => {
@@ -930,14 +932,14 @@ const {observe} = (() => {
         }
     }
 
-    const createComponent = (name, node, {framed, observer} = {}) => {
+    const createComponent = (name, node, {framed, observer, href} = {}) => {
         let ctor = customElements.get(name);
         if (ctor) {
             if (framed && !ctor.lightviewFramed) ctor.lightviewFramed = true;
             else console.warn(new Error(`${name} is already a CustomElement. Not redefining`));
             return ctor;
         }
-        ctor = createClass(node, {observer, framed});
+        ctor = createClass(node, {observer, framed, href});
         customElements.define(name, ctor);
         Lightview.customElements.set(name, ctor);
         return ctor;
@@ -963,7 +965,7 @@ const {observe} = (() => {
                 await importLink(childlink, observer);
             }
             if (unhide) dom.body.removeAttribute("hidden");
-            createComponent(as, dom.body, {observer});
+            createComponent(as, dom.body, {observer,href:url.href});
         }
         return {as};
     }

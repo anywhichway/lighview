@@ -1,4 +1,4 @@
-# lightview v1.7.1b (BETA)
+# lightview v1.7.2b (BETA)
 
 Small, simple, powerful web UI and micro front end creation ...
 
@@ -36,7 +36,7 @@ Meanwhile, here is what you get:
 
 1) SPA, and MPA friendly ... somewhat SEO friendly and short steps away from fully SEO friendly.
 
-1) A [component library](https://lightview.dev/components) including charts and gauges.
+1) A [component library](https://lightview.dev/components) including charts and gauges that work in Markdown files.
 
 1) Lots of live [editable examples](https://lightview.dev/#examples).
 
