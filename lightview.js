@@ -147,13 +147,13 @@ const {observe} = (() => {
                         } else {
                             Object.assign(instance, JSON.parse(value));
                         }
-                        if (toType !== Date) {
+                        /*if (toType !== Date) {
                             Object.defineProperty(instance, "constructor", {
                                 configurable: true,
                                 writable: true,
                                 value: toType.prototype.constructor || toType
                             });
-                        }
+                        }*/
                         return instance;
                     }
                     return JSON.parse(value);
@@ -178,7 +178,10 @@ const {observe} = (() => {
                             if (property === "toJSON") return function toJSON() { return [...target]; }
                             if (property === "toString") return function toString() { return JSON.stringify([...target]); }
                         }
-                        if(target instanceof Date) return Reflect.get(target,property);
+                        if(target instanceof Date) {
+                            const value = data[property];
+                            if(typeof(value)==="function") return value.bind(data);
+                        }
                         let value = target[property];
                         const type = typeof (value);
                         if (CURRENTOBSERVER && typeof (property) !== "symbol" && type !== "function") {
@@ -354,8 +357,10 @@ const {observe} = (() => {
         if (template) {
             const name = getTemplateVariableName(template);
             try {
-                let value = (name
-                    ? component[name] || walk(extras,name.split(".")) || walk(component.varsProxy,name.split("."))
+                const parts = name ? name.split(".") : null;
+                let value;
+                value = (parts
+                    ? (value = walk(extras,parts)) || (value = walk(component.varsProxy,parts)) || (value == null ? component[name] : value)
                     : Function("context", "extras", "with(context) { with(extras) { return `" + (safe ? template : Lightview.sanitizeTemplate(template)) + "` } }")(component.varsProxy,extras));
                 //let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(template) + "` }")(component.varsProxy);
                 if(typeof(value)==="function") return value;
@@ -398,7 +403,10 @@ const {observe} = (() => {
         let type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype);
         const variable = walk(component.vars,nameparts) || {type};
         if(type==="any") type = variable.type;
-        if(value==null) value = input.getAttribute("value");
+        if(value==null) {
+            const avalue = input.getAttribute("value");
+            if(avalue) value = avalue;
+        }
         if(object && nameparts.length>1) {
             const [root,...path] = nameparts;
             object = walk(object,path,path.length-2,true);
@@ -472,9 +480,6 @@ const {observe} = (() => {
         return {
             init({variable, component}) {
                 variable.shared = true;
-                /*addEventListener("change", ({variableName, value}) => {
-                    if (variableName===variable.name && component.vars[variableName]?.shared) component.siblings.forEach((instance) => instance.setVariableValue(variableName, value))
-                })*/
                 variable.set = function(newValue) {
                     if(component.vars[this.name]?.shared) component.siblings.forEach((instance) => instance.setVariableValue(this.name, newValue));
                 }
@@ -704,7 +709,11 @@ const {observe} = (() => {
                                                         }
                                                     })
                                                 } else if (eltype!=="radio") {
-                                                    attr.value = value;
+                                                    //attr.value = typeof(value)==="string" ? value : JSON.stringify(value);
+                                                    let avalue = typeof(value)==="string" ? value : value.toString ? value.toString() : JSON.stringify(value);
+                                                    if(avalue.startsWith('"')) avalue = avalue.substring(1);
+                                                    if(avalue.endsWith('"')) avalue = avalue.substring(0,avalue.length-1);
+                                                    attr.value = avalue;
                                                 }
                                             }
                                         });
@@ -714,6 +723,7 @@ const {observe} = (() => {
                                     if (attr.name === "value" && attr.template) return;
                                     const {name, value} = attr,
                                         vname = node.attributes.name?.value;
+                                    if(value.includes("${")) attr.template = value;
                                     if (name === "type" && value=="radio" && vname) {
                                         bindInput(node, vname, this, undefined, object);
                                         observe(() => {
@@ -904,6 +914,7 @@ const {observe} = (() => {
                             if(set!==undefined && constant!==undefined) throw new TypeError(`${key} has the constant value ${constant} and can't be set to ${set}`);
                             variable.value = set;
                             if(constant!==undefined) {
+                                if(remote || imported) throw new TypeError(`${key} can't be a constant and also remote or imported`)
                                 variable.constant = true;
                                 variable.value = constant;
                             }

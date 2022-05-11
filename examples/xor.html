@@ -20,6 +20,7 @@
         variableName,
         value
       }) => {
+      debugger;
         if (variableName === "run" && value === true) {
           self.siblings.forEach((sibling) => {
             sibling.setVariableValue(variableName, false);
