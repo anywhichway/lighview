@@ -1,26 +1,29 @@
 <html>
 <head>
-    <title>Lightview:Component:Gantt</title>
+    <title>Lightview:Component:Timeline</title>
 </head>
 <body>
 <div id="target"></div>
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
 <script type="lightview/module">
-    const {chart} = await import("../components.js"),
-        {duration} = await import("/types.js");
+    const {chart} = await import("../components.js");
     chart(self,{
-      packages:["gantt"],
+      packages:["timeline"],
       columns:[
-        {label:"Task ID",type:"string"},
-        {label:"Task Name",type:"string"},
-        {label:"Start Date",type:"date"},
-        {label:"End Date",type:"date"},
-        {label:"Duration",type:"number"},
-        {label:"% Complete",type:"number"},
-        {label:"Dependencies",type:"string"}
+        {id:"RowLabel",type:"string"},
+        {id:"BarLabel",type:"string"},
+        {id:"Start",type:"date"},
+        {id:"End",type:"date"}
         ],
-      type:"Gantt",
+      type:"Timeline",
+      optionsTransform(options) {
+        options = {...options};
+        if("showRowLabels" in options) {
+            options.timeline = { showRowLabels:options.showRowLabels };
+        }
+        return options;
+      },
       rowTransform(row,i) {
         return row.map((item,index) => {
           if(item && (index===2 || index===3)) {
@@ -30,7 +33,6 @@
             }
             return date;
           }
-          if(item && index===4) return duration.parse(item);
           return item;
         })
       }

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lightview:Component:Timeline:Example</title>
+    <link href="./timeline.html" rel="module">
+    <script src="../../lightview.js"></script>
+</head>
+<body>
+<l-timeline title="Presidents">
+    {
+    options: { showRowLabels: false },
+    rows: [
+        [ '1', 'George Washington','1789-03-30', '1797-2-04' ],
+        [ '2', 'John Adams',        '1797-02-04',  '1801-02-04' ],
+        [ '3', 'Thomas Jefferson',  '1801-02-04',  '1809-02-04']
+    ]
+    }
+</l-timeline>
+<l-timeline title="Presidents and Vice Presidents">
+    {
+    options: {  },
+    rows: [
+        [ 'President', 'George Washington','1789-03-30', '1797-2-04' ],
+        [ 'President', 'John Adams',        '1797-02-04',  '1801-02-04' ],
+        [ 'President', 'Thomas Jefferson',  '1801-02-04',  '1809-02-04'],
+        [ 'Vice President', 'John Adams','1789-03-21', '1797-02-04'],
+        [ 'Vice President', 'Thomas Jefferson','1797-02-04', '1801-02-04'],
+        [ 'Vice President', 'Aaron Burr','1801-02-04', '1805-02-04']
+    ]
+    }
+</l-timeline>
+</body>
+</html>

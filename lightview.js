@@ -617,9 +617,9 @@ const {observe} = (() => {
                     if (script.attributes.src?.value?.includes("/lightview.js")) continue;
                     const text = script.innerHTML
                         .replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1") // remove comments;
-                        .replaceAll(/\r?\n/g, "") // remove \n
-                        .replaceAll(/import\s*\((\s*["'][\.\/].*["'])\)/g,`import(new URL($1,"${href ? href : window.location.href}").href)`) // handle relative paths
-                        .replaceAll(/'(([^'\\]|\\.)*)'/g,"\\'$1\\'"); // handle quotes
+                        .replaceAll(/import\s*\((\s*["'][\.\/].*["'])\)(.*$)/gm,`import(new URL($1,"${href ? href : window.location.href}").href)$2`) // handle relative paths
+                        .replaceAll(/'(([^'\\]|\\.)*)'/g,"\\'$1\\'") // handle quotes
+                        .replaceAll(/\r?\n/g, ""); // remove \n
                     const currentScript = document.createElement("script");
                     if (script.className !== "lightview" && !((script.attributes.type?.value || "").includes("lightview/"))) {
                         for (const attr of script.attributes) currentScript.setAttribute(attr.name,attr.value);

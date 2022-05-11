@@ -1,4 +1,4 @@
-const chart = (self,{packages = ["corechart"],options={},columns=[],rows=[],type,rowTransform}={}) => {
+const chart = (self,{packages = ["corechart"],options={},columns=[],rows=[],type,optionsTransform, rowTransform}={}) => {
     options = {...options};
     columns = [...columns];
     let chart,
@@ -36,27 +36,39 @@ const chart = (self,{packages = ["corechart"],options={},columns=[],rows=[],type
                 if(entry.contentBoxSize) {
                     // Firefox implements `contentBoxSize` as a single content rect, rather than an array
                     const contentBoxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
-                    options.width = contentBoxSize.inlineSize;
+                    if(options.width !== contentBoxSize.inlineSize) {
+                        options.width = contentBoxSize.inlineSize;
+                        chart.draw(datatable, options);
+                    }
                 } else {
-                    options.width = entry.contentRect.width;
+                    if(options.width !== entry.contentRect.width) {
+                        options.width = entry.contentRect.width;
+                        chart.draw(datatable, options);
+                    }
                 }
             }
-            chart.draw(datatable, options);
         }),
         callback = (textNode, oldValue, newValue) => {
             datatable = new google.visualization.DataTable();
             try {
                 const config = JSON5.parse(newValue.trim());
-                if(config.options) options=config.options;
+                if(config.options) Object.assign(options,config.options);
                 if(config.columns) columns=config.columns;
                 if(config.rows) rows=config.rows;
                 columns.forEach((column) => {
                     datatable.addColumn(column);
                 });
-                if(rowTransform) rows = rows.map((row) => rowTransform(row));
+                if(optionsTransform) options = optionsTransform(options);
+                if(rowTransform) rows = rows.map((row,index) => rowTransform(row,index,options));
                 datatable.addRows(rows);
+                const {selectedStyle,style} = options;
+                rows.forEach((row,index) => {
+                    if(selectedStyle) datatable.setRowProperty(index,"selectedStyle",selectedStyle);
+                    if(style) datatable.setRowProperty(index,"style",style);
+                });
                 chart.draw(datatable, options);
             } catch (e) {
+                console.error(e + newValue);
                 target.innerText = e + newValue;
             }
         };
@@ -81,7 +93,7 @@ const chart = (self,{packages = ["corechart"],options={},columns=[],rows=[],type
         // Will be used by the Lightview global observer
         node.characterDataMutationCallback = callback;
         // resized charts if window resizes
-        resizeObserver.observe(target);
+        resizeObserver.observe(document.body);
         self.dispatchEvent(new Event("mounted"));
     };
     self.addEventListener("connected", ({target}) => {
