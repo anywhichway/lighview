@@ -1,12 +1,18 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Message</title>
+    <title>Lightview:Examples:Message</title>
+    <script src="../lightview2.js?as=x-body"></script>
 </head>
-<body>
+<body value="Hello!">
 ${value}
-<script type="lightview/module">
-    self.variables({value:"string"},{imported});
+<script id="lightview">
+    /*(document.currentComponent||=document.body).mount = function() {
+        this.variables({value:"string"},{imported});
+    }*/
+    (document.currentComponent||(document.currentComponent=document.body)).mount = function() {
+        this.variables({value:"string"},{imported});
+    }
 </script>
 </body>
 </html>

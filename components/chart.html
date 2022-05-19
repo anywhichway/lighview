@@ -7,75 +7,77 @@
 <div id="target"></div>
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
-<script type="lightview/module">
-    let table = JSON5.parse(self.firstChild.textContent.trim()),
-        chart,
-        datatable,
-        options = {};
-    const target = self.getElementById("target"),
-        resizeObserver = new ResizeObserver(entries => {
-          for (let entry of entries) {
-            if(entry.contentBoxSize) {
-              // Firefox implements `contentBoxSize` as a single content rect, rather than an array
-              const contentBoxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
-              options.width = contentBoxSize.inlineSize;
-            } else {
-              options.width = entry.contentRect.width;
-            }
-          }
-          chart.draw(datatable, options);
-        }),
-        callback = (textNode, oldValue, newValue) => {
-            datatable = new google.visualization.DataTable();
-            try {
-                table = table || JSON5.parse(newValue.trim());
-                datatable = google.visualization.arrayToDataTable(table);
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        let table = JSON5.parse(self.firstChild.textContent.trim()),
+            chart,
+            datatable,
+            options = {};
+        const target = self.getElementById("target"),
+            resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    if (entry.contentBoxSize) {
+                        // Firefox implements `contentBoxSize` as a single content rect, rather than an array
+                        const contentBoxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
+                        options.width = contentBoxSize.inlineSize;
+                    } else {
+                        options.width = entry.contentRect.width;
+                    }
+                }
                 chart.draw(datatable, options);
-                table = null;
-            } catch (e) {
-                target.innerText = e + newValue;
+            }),
+            callback = (textNode, oldValue, newValue) => {
+                datatable = new google.visualization.DataTable();
+                try {
+                    table = table || JSON5.parse(newValue.trim());
+                    datatable = google.visualization.arrayToDataTable(table);
+                    chart.draw(datatable, options);
+                    table = null;
+                } catch (e) {
+                    target.innerText = e + newValue;
+                }
+            };
+        self.firstChild.innerText = "Loading ...";
+        self.variables({type: "string", title: "string", style: "string"}, {observed});
+        if (style) target.setAttribute("style", style);
+        self.addRow = (row) => {
+            datatable.addRows([row]);
+            chart.draw(datatable, options);
+        };
+        self.setValue = (row, col, value) => {
+            if (datatable) {
+                datatable.setValue(row, col, value);
+                chart.draw(datatable, options);
             }
         };
-    self.firstChild.innerText = "Loading ...";
-    self.variables({type: "string", title: "string", style: "string"}, {observed});
-    if(style) target.setAttribute("style",style);
-    self.addRow = (row) => {
-        datatable.addRows([row]);
-        chart.draw(datatable, options);
-    };
-    self.setValue = (row,col,value) => {
-        if(datatable) {
-            datatable.setValue(row,col,value);
-            chart.draw(datatable, options);
-        }
-    };
-    self.setOptions = (newOptions) => {
-      Object.assign(options,newOptions);
-    };
-    self.init = () => {
-        if(!options.title && title) options.title = title;
-        chart = new google.visualization[type](target);
-        addEventListener("change",({target,value}) => {
-            if (target === "type") {
-                chart = new google.visualization[type](target);
-            } else if (target === "title") {
-                options.title = value;
-            } else if(target === "style") {
-                target.setAttribute("style",value);
-            }
-            chart.draw(datatable, options);
+        self.setOptions = (newOptions) => {
+            Object.assign(options, newOptions);
+        };
+        self.init = () => {
+            if (!options.title && title) options.title = title;
+            chart = new google.visualization[type](target);
+            addEventListener("change", ({target, value}) => {
+                if (target === "type") {
+                    chart = new google.visualization[type](target);
+                } else if (target === "title") {
+                    options.title = value;
+                } else if (target === "style") {
+                    target.setAttribute("style", value);
+                }
+                chart.draw(datatable, options);
+            });
+            const node = self.firstChild;
+            callback(node, node.textContent, node.textContent);
+            // Will be used by the Lightview global observer
+            node.characterDataMutationCallback = callback;
+            // resized charts if window resizes
+            resizeObserver.observe(target);
+        };
+        self.addEventListener("connected", ({target}) => {
+            google.charts.load("current", {"packages": ["corechart", "gauge"]});
+            google.charts.setOnLoadCallback(self.init);
         });
-        const node = self.firstChild;
-        callback(node, node.textContent, node.textContent);
-        // Will be used by the Lightview global observer
-        node.characterDataMutationCallback = callback;
-        // resized charts if window resizes
-        resizeObserver.observe(target);
-    };
-    self.addEventListener("connected", ({target}) => {
-        google.charts.load("current", {"packages": ["corechart","gauge"]});
-        google.charts.setOnLoadCallback(self.init);
-    });
+    }
 </script>
 </body>
 </html>

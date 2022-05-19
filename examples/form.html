@@ -33,26 +33,28 @@
 
     </p>
 </div>
-<script type="lightview/module">
-    self.variables({color:"string"},{reactive});
-    addEventListener("change", () => {
-      variableValues()
-    });
-    self.addEventListener("connected",() => {
-        color = "yellow";
-        checked = true;
-        hamburger = ["cheese"];
-    });
-    // demo instrumentation
-    const variableValues = () => {
-      const el = self.getElementById("variables");
-      while (el.lastElementChild) el.lastElementChild.remove();
-      self.getVariableNames().forEach((name) => {
-        const line = document.createElement("div");
-        line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
-        el.appendChild(line);
-      });
-    };
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        self.variables({color: "string"}, {reactive});
+        addEventListener("change", () => {
+            variableValues()
+        });
+        self.addEventListener("connected", () => {
+            color = "yellow";
+            checked = true;
+            hamburger = ["cheese"];
+        });
+        // demo instrumentation
+        const variableValues = () => {
+            const el = self.getElementById("variables");
+            while (el.lastElementChild) el.lastElementChild.remove();
+            self.getVariableNames().forEach((name) => {
+                const line = document.createElement("div");
+                line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
+                el.appendChild(line);
+            });
+        };
+    }
   </script>
 </body>
 

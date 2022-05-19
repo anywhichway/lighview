@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Form</title>
+    <template id="myform">
+        ${formname}: <form>
+        <input type="text" value="${name}">
+    </form>
+        <script id="lightview">
+            (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+                self.variables({
+                    name: "string"
+                }, {
+                    shared,
+                    reactive
+                });
+
+                self.variables({
+                    formname: "string"
+                }, {
+                    imported
+                });
+            }
+    </script>
+    </template>
+    <script src="https://000686818.codepen.website/lightview.js"></script>
+    <script>
+        Lightview.createComponent("x-form", document.getElementById("myform"))
+    </script>
+</head>
+
+<body>
+<div style="margin:20px">
+    <p>Changing one field will change the other. Try it.</p>
+    <x-form formname="Form1"></x-form>
+    <x-form formname="Form2"></x-form>
+</div>
+</body>
+
+</html>

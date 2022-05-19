@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet"
+          href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/default.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js"></script>
+</head>
+<body>
+<div style="position:relative">
+<pre style="position:absolute;top:0;left:0;"><textarea id="editor"  class="hljs language-html" style="border:none"></textarea></pre>
+<pre style="position:absolute;top:0;left:0;"><code id="codereflector" class="hljs language-html" style="padding:2px;"></code></pre>
+</div>
+<style>
+    .cursor {
+        -webkit-animation: 2s linear infinite condemned_blink_effect; /* for Safari 4.0 - 8.0 */
+        animation: 2s linear infinite condemned_blink_effect;
+        position:relative;left:-.45ch;letter-spacing:1px;
+    }
+
+    /* for Safari 4.0 - 8.0 */
+    @-webkit-keyframes condemned_blink_effect {
+        0% {
+            visibility: hidden;
+        }
+        50% {
+            visibility: hidden;
+        }
+        100% {
+            visibility: visible;
+        }
+    }
+
+    @keyframes condemned_blink_effect {
+        0% {
+            visibility: hidden;
+        }
+        50% {
+            visibility: hidden;
+        }
+        100% {
+            visibility: visible;
+        }
+    }
+</style>
+<script>
+
+
+    const editor = document.getElementById("editor"),
+        reflector = document.getElementById("codereflector");
+    Object.defineProperty(editor,"innerText",{get() { return editor.value; }});
+    editor.addEventListener("input",() => {
+        //editor.style.cssText = document.defaultView.getComputedStyle(reflector, "").cssText;
+        const startPosition = editor.selectionStart,
+            endPosition = editor.selectionEnd,
+            value = editor.value.substring(0,startPosition) + "|cursor|" + editor.value.substring(startPosition);
+        reflector.innerText = value;
+        hljs.highlightElement(reflector);
+        reflector.innerHTML = reflector.innerHTML.replace("|cursor|",'<span class="cursor">|</span>');
+    })
+</script>
+</body>
+</html>

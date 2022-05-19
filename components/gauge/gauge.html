@@ -1,16 +1,19 @@
-<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Lightview:Component:Chart</title>
+    <title>Lightview:Component:Gauge</title>
 </head>
 <body>
 <div id="target"></div>
 <script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
 <script id="lightview">
     (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
-        const {chart} = await import(new URL("../components.js", this.componentBaseURI).href);
-        chart(self);
+        const {chart} = await import("../components.js");
+        chart(self, {
+            packages: ["corechart", "gauge"],
+            columns: [{label: "Label", type: "string"}, {label: "Value", type: "number"}],
+            type: "Gauge"
+        });
     }
 </script>
 </body>

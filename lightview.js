@@ -28,6 +28,8 @@ SOFTWARE.
     imported(x) => exported(x) => reactive(x) => remote(x,{path:".
  */
 
+if(document.body) document.currentComponent = document.body;
+
 const Lightview = {};
 
 const {observe} = (() => {
@@ -147,13 +149,6 @@ const {observe} = (() => {
                         } else {
                             Object.assign(instance, JSON.parse(value));
                         }
-                        /*if (toType !== Date) {
-                            Object.defineProperty(instance, "constructor", {
-                                configurable: true,
-                                writable: true,
-                                value: toType.prototype.constructor || toType
-                            });
-                        }*/
                         return instance;
                     }
                     return JSON.parse(value);
@@ -236,6 +231,7 @@ const {observe} = (() => {
     const createVarsProxy = (vars, component, constructor) => {
         return new Proxy(vars, {
             get(target, property) {
+                if(property==="self") return component;
                 if(target instanceof Date) return Reflect.get(target,property);
                 let {value,get} = target[property] || {};
                 if(get) return target[property].value = get.call(target[property]);
@@ -402,7 +398,7 @@ const {observe} = (() => {
             nameparts = variableName.split(".");
         let type = input.tagName === "SELECT" && input.hasAttribute("multiple") ? Array : inputTypeToType(inputtype);
         const variable = walk(component.vars,nameparts) || {type};
-        if(type==="any") type = variable.type;
+        if(type==="any") type = variable?.type.type || variable?.type;
         if(value==null) {
             const avalue = input.getAttribute("value");
             if(avalue) value = avalue;
@@ -413,14 +409,16 @@ const {observe} = (() => {
             const key = path[path.length-1];
             object[key] =  coerce(value,type);
         } else {
-            if (type !== variable.type) {
-                if (variable.type === "any" || variable.type === "unknown") variable.type = type;
-                else throw new TypeError(`Attempt to bind <input name="${variableName}" type="${type}"> to variable ${variableName}:${variable.type}`)
-            }
             const existing = component.vars[variableName];
-            if(!existing || existing.type!==type || !existing.reactive) component.variables({[variableName]: type},{reactive});
+            if(existing) {
+                existingtype = existing?.type.type || existing?.type;
+                if(existingtype!==type) throw new TypeError(`Attempt to bind <input name="${variableName}" type="${type}"> to variable ${variableName}:${existing.type}`)
+                existing.reactive = true;
+            } else {
+                component.variables({[variableName]: type},{reactive});
+            }
             if(inputtype!=="radio") {
-                if(typeof(value)==="string" && value.includes("${")) input.attributes.value.value = "";
+                if(typeof(value)==="string" && value.includes("${")) input.setAttribute("value","");
                 else component.setVariableValue(variableName, coerce(value,type));
             }
         }
@@ -537,22 +535,43 @@ const {observe} = (() => {
             value: imported
         }
     };
-    const createClass = (domElementNode, {observer, framed, href}) => {
+    const createClass = (domElementNode, {observer, framed, href=window.location.href}) => {
         const instances = new Set(),
-            dom = domElementNode.tagName === "TEMPLATE"
-                ? domElementNode.content.cloneNode(true)
-                : domElementNode.cloneNode(true),
             observedAttributes = [];
+        /*let dom = domElementNode.tagName === "TEMPLATE"
+            ? domElementNode.content.cloneNode(true)
+            : domElementNode.cloneNode(true);*/
+        let dom;
         observedAttributes.add = function(name) { observedAttributes.includes(name) || observedAttributes.push(name); }
-        if (domElementNode.tagName === "TEMPLATE") domElementNode = domElementNode.cloneNode(true);
-        return class CustomElement extends HTMLElement {
+        const cls = class CustomElement extends HTMLElement {
             static get instances() {
                 return instances;
             }
+            static setTemplateNode(node) {
+                dom = node.tagName === "TEMPLATE"
+                    ? document.createElement("div")
+                    : node.cloneNode(true);
+                if(node.tagName === "TEMPLATE") {
+                    dom.innerHTML = node.innerHTML;
+                    [...node.attributes].forEach((attr) => dom.setAttribute(attr.name,attr.value));
+                    document.currentComponent = node;
+                    document.currentComponent.componentBaseURI = window.location.href;
+                    const lvscript = dom.querySelector("#lightview");
+                    if(lvscript) {
+                        const script = document.createElement("script");
+                        script.innerHTML = lvscript.innerHTML;
+                        document.head.appendChild(script);
+                        script.remove();
+                    }
+                    document.currentComponent = null;
+                }
+                dom.mount = node.mount;
+            }
             constructor() {
                 super();
+                this.componentBaseURI = href;
                 instances.add(this);
-                const currentComponent = this,
+                const currentComponent =  document.currentComponent =this,
                     shadow = this.attachShadow({mode: "open"}),
                     eventlisteners = {};
                 this.vars = {
@@ -585,7 +604,6 @@ const {observe} = (() => {
                     },
                     self: {value: currentComponent, type: CustomElement, constant: true}
                 };
-                this.defaultAttributes = domElementNode.tagName === "TEMPLATE" ? domElementNode.attributes : dom.attributes;
                 this.varsProxy = createVarsProxy(this.vars, this, CustomElement);
                 if (framed || CustomElement.lightviewFramed) this.variables({message: Object}, {exported});
                 ["getElementById", "querySelector", "querySelectorAll"]
@@ -596,7 +614,17 @@ const {observe} = (() => {
                             value: (...args) => this.shadowRoot[fname](...args)
                         })
                     });
-                [...dom.childNodes].forEach((child) => shadow.appendChild(child.cloneNode(true)));
+                [...dom.childNodes].forEach((child) => {
+                    if(child.tagName && customElements.get(child.tagName.toLowerCase())) {
+                        const node = document.createElement(child.tagName);
+                        [...child.attributes].forEach((attr) => node.setAttribute(attr.name,attr.value));
+                        document.currentComponent = node;
+                        shadow.appendChild(node);
+                    } else {
+                        const node = child.cloneNode(true);
+                        shadow.appendChild(node);
+                    }
+                });
                 importAnchors(shadow, this);
             }
 
@@ -612,57 +640,44 @@ const {observe} = (() => {
                 instances.delete(this);
             }
 
-            async connectedCallback() {
-                const ctx = this,
-                    shadow = ctx.shadowRoot;
-                for (const attr of this.defaultAttributes) this.hasAttribute(attr.name) || this.setAttribute(attr.name, attr.value);
-                const scripts = shadow.querySelectorAll("script"),
-                    promises = [];
-                for (const script of [...scripts]) {
-                    if (script.attributes.src?.value?.includes("/lightview.js")) continue;
-                    const text = script.innerHTML
-                        .replaceAll(/\/\*[\s\S]*?\*\/|([^:]|^)\/\/.*$/gm, "$1") // remove comments;
-                        .replaceAll(/import\s*\((\s*["'][\.\/].*["'])\)(.*$)/gm,`import(new URL($1,"${href ? href : window.location.href}").href)$2`) // handle relative paths
-                        .replaceAll(/'(([^'\\]|\\.)*)'/g,"\\'$1\\'") // handle quotes
-                        .replaceAll(/\r?\n/g, ""); // remove \n
-                    const currentScript = document.createElement("script");
-                    if (script.className !== "lightview" && !((script.attributes.type?.value || "").includes("lightview/"))) {
-                        for (const attr of script.attributes) currentScript.setAttribute(attr.name,attr.value);
-                        currentScript.innerHTML = text;
-                        shadow.appendChild(currentScript);
-                        await new Promise((resolve) => {
-                            const timeout = setTimeout(() => resolve(),500);
-                            currentScript.onload = () => {
-                                clearTimeout(timeout);
-                                currentScript.remove();
-                                resolve();
-                            }
-                        })
-                        continue;
-                    };
-                    const scriptid = Math.random() + "";
-                    for (const attr of script.attributes) {
-                        currentScript.setAttribute(attr.name, attr.name === "type" ? attr.value.replace("lightview/", "") : attr.value);
-                    }
-                    currentScript.classList.remove("lightview");
-                    currentScript.innerHTML = `Object.getPrototypeOf(async function(){}).constructor('if(window["${scriptid}"]?.ctx) { const ctx = window["${scriptid}"].ctx; { with(ctx) { ${text}; } } }')().then(() => window["${scriptid}"]()); `;
-                    await new Promise((resolve) => {
-                        window[scriptid] = () => {
-                            delete window[scriptid];
-                            currentScript.remove();
-                            script.remove();
-                            resolve();
-                        }
-                        window[scriptid].ctx = ctx.varsProxy;
-                        shadow.appendChild(currentScript);
-                    })
+            connectedCallback() {
+                [...dom.attributes].forEach((attr) => {
+                    if(!this.hasAttribute(attr.name)) this.setAttribute(attr.name,attr.value);
+                })
+                if(dom.mount) {
+                    const script = document.createElement("script");
+                    document.currentComponent = this;
+                    script.innerHTML = `with(document.currentComponent.varsProxy) { 
+                        const component = document.currentComponent; 
+                        (async () => { await (${dom.mount}).call(self,self); 
+                        component.compile();  })(); 
+                    };`;
+                    this.appendChild(script);
+                    script.remove();
+                    document.currentComponent = null;
                 }
+            }
+            compile() {
                 // Promise.all(promises).then(() => {
+                const ctx = this,
+                    shadow = this.shadowRoot;
                 const nodes = getNodes(ctx),
                     processNodes = (nodes,object) => {
                         nodes.forEach((node) => {
                             if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
                                 observe(() => resolveNodeOrText(node, this,true,node.extras));
+                                if(node.parentElement?.tagName==="TEXTAREA") {
+                                    const name = getTemplateVariableName(node.template);
+                                    if (name) {
+                                        const nameparts = name.split(".");
+                                        if(node.extras && node.extras[nameparts[0]]) {
+                                            object = node.extras[nameparts[0]];
+                                        }
+                                        if(!this.vars[nameparts[0]] || this.vars[nameparts[0]].reactive || object) {
+                                            bindInput(node.parentElement, name, this, resolveNodeOrText(node.template, this,true,node.extras), object);
+                                        }
+                                    }
+                                }
                             } else if (node.nodeType === Node.ELEMENT_NODE) {
                                 // resolve the value before all else;
                                 const attr = node.attributes.value,
@@ -774,7 +789,7 @@ const {observe} = (() => {
                                     } else if (type === "l-if") {
                                         observe(() => {
                                             const value = resolveNodeOrText(attr, this,true,node.extras);
-                                            node.style.setProperty("display", value == true ? "revert" : "none");
+                                            node.style.setProperty("display", value == true || value === "true" ? "revert" : "none");
                                         })
                                     } else if (type === "l-for") {
                                         node.template ||= node.innerHTML;
@@ -845,7 +860,7 @@ const {observe} = (() => {
                 observer.observe(ctx, {attributeOldValue: true, subtree:true, characterData:true, characterDataOldValue:true});
                 if(this.hasAttribute("l-unhide")) this.removeAttribute("hidden");
                 //ctx.vars.postEvent.value("connected");
-                this.dispatchEvent(new Event("connected"));
+                this.dispatchEvent(new Event("mounted"));
                 // })
             }
             adoptedCallback(callback) {
@@ -941,6 +956,8 @@ const {observe} = (() => {
                     }, {});
             }
         }
+        cls.setTemplateNode(domElementNode);
+        return cls;
     }
 
     const createComponent = (name, node, {framed, observer, href} = {}) => {
@@ -967,16 +984,34 @@ const {observe} = (() => {
             const html = await (await fetch(url.href)).text(),
                 dom = parser.parseFromString(html, "text/html"),
                 unhide = !!dom.head.querySelector('meta[name="l-unhide"]'),
-                links = dom.head.querySelectorAll('link[href$=".html"][rel=module]');
-            for (const childlink of links) {
+                modulelinks = dom.head.querySelectorAll('link[href$=".html"][rel=module]');
+            for (const childlink of modulelinks) {
                 const href = childlink.getAttribute("href"),
                     childurl = new URL(href, url.href);
                 childlink.setAttribute("href", childurl.href);
                 if (link.hasAttribute("crossorigin")) childlink.setAttribute("crossorigin", link.getAttribute("crossorigin"))
                 await importLink(childlink, observer);
             }
-            if (unhide) dom.body.removeAttribute("hidden");
+            const links =  dom.head.querySelectorAll('link:not([href$=".html"][rel=module])');
+            for(const childlink of links) {
+                const href = childlink.getAttribute("href"),
+                    childurl = new URL(href, url.href);
+                childlink.setAttribute("href", childurl.href);
+                if (link.hasAttribute("crossorigin")) childlink.setAttribute("crossorigin", link.getAttribute("crossorigin"));
+                dom.body.insertBefore(childlink,dom.body.firstChild);
+            }
+            document.currentComponent = dom.body;
+            document.currentComponent.componentBaseURI = url.href;
+            const lvscript = dom.getElementById("lightview");
+            if(lvscript) {
+                const script = document.createElement("script");
+                script.innerHTML = lvscript.innerHTML;
+                document.body.appendChild(script);
+                script.remove();
+            }
+            document.currentComponent = null;
             createComponent(as, dom.body, {observer,href:url.href});
+            if (unhide) dom.body.removeAttribute("hidden");
         }
         return {as};
     }

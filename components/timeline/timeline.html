@@ -1,42 +1,44 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>Lightview:Component:Timeline</title>
 </head>
 <body>
 <div id="target"></div>
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
-<script type="lightview/module">
-    const {chart} = await import("../components.js");
-    chart(self,{
-      packages:["timeline"],
-      columns:[
-        {id:"RowLabel",type:"string"},
-        {id:"BarLabel",type:"string"},
-        {id:"Start",type:"date"},
-        {id:"End",type:"date"}
-        ],
-      type:"Timeline",
-      optionsTransform(options) {
-        options = {...options};
-        if("showRowLabels" in options) {
-            options.timeline = { showRowLabels:options.showRowLabels };
-        }
-        return options;
-      },
-      rowTransform(row,i) {
-        return row.map((item,index) => {
-          if(item && (index===2 || index===3)) {
-            const date = new Date(item);
-            if(!date || typeof(date)!=="object" || !(date instanceof Date)) {
-                throw new TypeError(`row:${i} col:${index} is not a date`);
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        const {chart} = await import(new URL("../components.js", window.location.href).href);
+        chart(self, {
+            packages: ["timeline"],
+            columns: [
+                {id: "RowLabel", type: "string"},
+                {id: "BarLabel", type: "string"},
+                {id: "Start", type: "date"},
+                {id: "End", type: "date"}
+            ],
+            type: "Timeline",
+            optionsTransform(options) {
+                options = {...options};
+                if ("showRowLabels" in options) {
+                    options.timeline = {showRowLabels: options.showRowLabels};
+                }
+                return options;
+            },
+            rowTransform(row, i) {
+                return row.map((item, index) => {
+                    if (item && (index === 2 || index === 3)) {
+                        const date = new Date(item);
+                        if (!date || typeof (date) !== "object" || !(date instanceof Date)) {
+                            throw new TypeError(`row:${i} col:${index} is not a date`);
+                        }
+                        return date;
+                    }
+                    return item;
+                })
             }
-            return date;
-          }
-          return item;
-        })
-      }
-    });
+        });
+    }
 </script>
 </body>
 </html>

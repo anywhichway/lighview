@@ -10,8 +10,8 @@
 
 <script id="lightview">
     (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
-        self.variables({count: "number",}, {reactive, set: 0});
-        self.bump = () => count++;
+        this.variables({count: "number",}, {reactive,set:0});
+        this.bump = () => count++;
     }
 </script>
 

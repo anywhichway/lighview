@@ -1,36 +1,41 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>Lightview:Component:OrgChart</title>
+    <script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
 </head>
 <body>
 <link id="load-css-2" rel="stylesheet" type="text/css" href="https://www.gstatic.com/charts/51/css/orgchart/orgchart.css">
 <div id="target"></div>
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-<script src="https://unpkg.com/json5@^2.0.0/dist/index.min.js"></script>
-<script type="lightview/module">
-    const {chart} = await import("../components.js");
-    chart(self,{
-      options: {allowHtml: true, allowCollapse: true},
-      packages:["orgchart"],
-      columns:[
-        {label:"Name",type:"string"},
-        {label:"Manager",type:"string"},
-        {label:"Tooltip",type:"string"}
-        ],
-      type:"OrgChart",
-      // 4 columns in definition data name,title,manager,tooltip
-      rowTransform(row) {
-        return row.reduce((row,item,index) => {
-            item ||= "";
-            if(index===1) {
-                row[0] = {v:row[0],f:`<div style="text-align:center;">${row[0]}<div style="font-style:italic">${item}</div></div>`}
-            } else {
-                row.push(item);
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        const {chart} = await import("../components.js");
+        chart(self, {
+            options: {allowHtml: true, allowCollapse: true},
+            packages: ["orgchart"],
+            columns: [
+                {label: "Name", type: "string"},
+                {label: "Manager", type: "string"},
+                {label: "Tooltip", type: "string"}
+            ],
+            type: "OrgChart",
+            // 4 columns in definition data name,title,manager,tooltip
+            rowTransform(row) {
+                return row.reduce((row, item, index) => {
+                    item ||= "";
+                    if (index === 1) {
+                        row[0] = {
+                            v: row[0],
+                            f: `<div style="text-align:center;">${row[0]}<div style="font-style:italic">${item}</div></div>`
+                        }
+                    } else {
+                        row.push(item);
+                    }
+                    return row;
+                }, []);
             }
-            return row;
-        },[]);
-      }
-    });
+        });
+    }
 </script>
 </body>
 </html>

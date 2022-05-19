@@ -26,9 +26,11 @@
     </p>
 </div>
 
-<script type="lightview/module">
-    self.variables({count: "number",test:"number"}, {reactive,set:0});
-    self.bump = () => count++;
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        self.variables({count: "number", test: "number"}, {reactive, set: 0});
+        self.bump = () => count++;
+    }
 </script>
 
 <style>

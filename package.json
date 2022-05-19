@@ -1,6 +1,6 @@
 {
   "name": "lightview",
-  "version": "1.7.3b",
+  "version": "1.8.1b",
   "description": "Small, simple, powerful web UI and micro front end creation ... Great ideas from Svelte, React, Vue and Riot combined.",
   "main": "lightview.js",
   "scripts": {
@@ -28,9 +28,14 @@
   "bugs": {
     "url": "https://github.com/anywhichway/lightview/issues"
   },
-  "homepage": "https://github.com/anywhichway/lightview#readme",
+  "homepage": "https://lightview.dev",
   "devDependencies": {
+    "@editorjs/editorjs": "^2.16.0",
+    "editorjs-inline-tool": "^0.4.0",
     "jest": "^27.5.1",
     "jest-puppeteer": "^6.1.0"
+  },
+  "dependencies": {
+    "froala-editor": "^4.0.11"
   }
 }

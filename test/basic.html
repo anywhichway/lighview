@@ -32,16 +32,18 @@
         <input id="inumber" type="number" value="${inumber}">
         <input id="irange" type="range" value="${irange}">
 
-
-
         <input id="icheckbox" type="checkbox" value="${icheckbox}">
-
-        <script type="lightview/module">
-       // debugger;
-            self.variables({name:"string",open:"boolean",count:"number",children:Array},{imported,reactive});
-            self.variables({color:"string",checked:"boolean",age:"number",hamburger:Array},{exported,reactive});
-            self.variables({counter:"number"},{reactive});
-            self.variables({myshare:"number"},{shared});
+    </template>
+    <script>
+        document.getElementById("x-test").mount = (self) => {
+            // debugger;
+            self.variables({name: "string", open: "boolean", count: "number", children: Array}, {imported, reactive});
+            self.variables({color: "string", checked: "boolean", age: "number", hamburger: Array}, {
+                exported,
+                reactive
+            });
+            self.variables({counter: "number"}, {reactive});
+            self.variables({myshare: "number"}, {shared});
 
             color = "green";
             checked = true;
@@ -73,12 +75,12 @@
                 counter++;
             };
 
-            addEventListener("change",({variableName,value}) => {
+            addEventListener("change", ({variableName, value}) => {
                 self[variableName] = value;
             });
-        </script>
-    </template>
-    <script src="../lightview.js"></script>
+        }
+    </script>
+    <script src="../lightview2.js"></script>
     <script>
         Lightview.createComponent("x-test",document.getElementById("x-test"));
     </script>

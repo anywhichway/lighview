@@ -3,9 +3,8 @@
 
 <head>
     <title>Form</title>
-    <script src="../lightview.js?as=x-body"></script>
+    <script src="https://000686818.codepen.website/lightview.js?as=x-body"></script>
 </head>
-
 <body>
 <form value="${hamburger}" style="margin:20px;padding:5px;border:1px;border-style:solid;">
     <div>Hamburger options:</div>
@@ -18,15 +17,18 @@
 
     </p>
 </form>
-<script type="lightview/module">
-    self.addEventListener("connected",() => {
-        hamburger.options = ["cheese"];
-        observe(() => {
-             const el = self.getElementById("variables");
-             el.innerText = JSON.stringify(hamburger);
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        self.addEventListener("mounted",() => {
+            hamburger.options = ["cheese"];
+            // demo instrumentation
+            observe(() => {
+                const el = self.getElementById("variables");
+                el.innerText = JSON.stringify(hamburger);
+            });
         });
-    });
-  </script>
+    }
+</script>
 </body>
 
 </html>

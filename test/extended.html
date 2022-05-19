@@ -3,30 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <title>Extended</title>
-    <script src="../lightview.js?as=x-body"></script>
+    <script src="../lightview2.js?as=x-body"></script>
 </head>
 <body>
-<script type="lightview/module">
-const {array,boolean,number,object,string} = await import("../types.js");
+<script>
+    document.body.mount = async (self) => {
+        const {array,boolean,number,object,string} = await import("../types.js");
 
-self.variables({strictarray:array},{set:[]});
-self.variables({strictboolean:boolean},{set:true});
-self.variables({strictnumber:number},{set:0});
-self.variables({strictobject:object},{set:{}});
-self.variables({strictstring:string},{set:"test"});
-self.variables({extendedarray:array({required:true,minlength:2,maxlength:3})});
-self.variables({extendedboolean:boolean({required:true})});
-self.variables({extendednumber:number({required:true,min:1,max:4,step:2,allowNaN:false})});
-self.variables({extendedobject:object({required:true})});
-self.variables({extendedstring:string({required:true,minlength:2,maxlength:4})});
+        self.variables({strictarray:array},{set:[]});
+        self.variables({strictboolean:boolean},{set:true});
+        self.variables({strictnumber:number},{set:0});
+        self.variables({strictobject:object},{set:{}});
+        self.variables({strictstring:string},{set:"test"});
+        self.variables({extendedarray:array({required:true,minlength:2,maxlength:3})});
+        self.variables({extendedboolean:boolean({required:true})});
+        self.variables({extendednumber:number({required:true,min:1,max:4,step:2,allowNaN:false})});
+        self.variables({extendedobject:object({required:true})});
+        self.variables({extendedstring:string({required:true,minlength:2,maxlength:4})});
 
-self.variables({allowNaNnumber:number({min:null,max:null,step:null})});
-self.variables({noNaNnumber:number({allowNaN:false})});
-
-//debugger;
-//self.setVariableValue("extendedarray",[]);
-//console.log(typeof(extendedarray),extendedarray);
-
+        self.variables({allowNaNnumber:number({min:null,max:null,step:null})});
+        self.variables({noNaNnumber:number({allowNaN:false})});
+    }
 </script>
 </body>
 </html>

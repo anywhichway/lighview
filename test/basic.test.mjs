@@ -1,15 +1,5 @@
 import 'expect-puppeteer';
 
-describe('Google', () => {
-    beforeAll(async () => {
-        await page.goto('https://google.com');
-    });
-
-    test('should be titled "Google"', async () => {
-        await expect(page.title()).resolves.toMatch('Google');
-    });
-});
-
 describe('Lightview - Variables', () => {
     beforeAll(async () => {
         await page.goto('http://localhost:8080/test/basic.html');

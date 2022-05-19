@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Sites</title>
+    <script src="https://unpkg.com/@isomorphic-git/lightning-fs"></script>
+    <script src="https://unpkg.com/isomorphic-git"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/header@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/list@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/table@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/embed@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/editorjs-tooltip@1.1.3/dist/bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/editorjs-inline-image@1.1.0/dist/bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@rodrigoodhin/editorjs-image-gallery@0.1.0/dist/bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/editorjs-header-with-anchor@2.6.0/dist/bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@editorjs/link@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@calumk/editorjs-codeflask@1.0.9/dist/editorjs-codeflask.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/editorjs-github-gist-plugin@1.1.0/dist/main.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <template id="repl">
+
+            <div id="content" style="flex:auto;min-height:100%;width:750px;max-width:750px;height:100%;border:1px solid;padding:10px;margin:0 auto">
+                <div style="display:flex;flex-direction:column;">
+                    <div id="tabs" style="flex-grow:0;width:100%;border:1px;padding-bottom:5px;text-align:center">
+                        <span style="padding-right:10px"><label for="headhtml" l-on:click="${onTabClick}">HTML Head</label><input for="headhtml" value="${headhtmlPinned}" type="checkbox"  l-on:click="${onPinClick}"></span>
+                        <span style="padding-right:10px"><label for="wysiwyg" l-on:click="${onTabClick}">WYSIWYG</label><input for="wysiwyg" value="${wysiwygPinned}" type="checkbox" checked l-on:click="${onPinClick}"></span>
+                        <span style="padding-right:10px"><label for="bodyhtml" l-on:click="${onTabClick}">HTML Body</label><input for="bodyhtml" value="${bodyhtmlPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+                        <span style="padding-right:10px"><label for="markdown" l-on:click="${onTabClick}">Markdown (Body)</label><input for="markdown" value="${markdownPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+                        <span style="padding-right:10px"><label for="css" l-on:click="${onTabClick}">Style</label><input for="css" value="${cssPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+                        <span style="padding-right:10px"><label for="script" l-on:click="${onTabClick}">Script</label><input for="script" value="${scriptPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+                        <span style="padding-right:10px"><label for="preview" l-on:click="${onTabClick}">Preview</label><input for="preview" value="${previewPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+                    </div>
+                </div>
+                <div id="wysiwyg" style="max-width:100%;"><slot name="editor"></slot></div>
+                <textarea id="headhtml" style="height:200px;max-width:99%;width:99%;margin-right:2px;display:none">${headhtml}</textarea>
+                <textarea id="bodyhtml" style="height:200px;max-width:99%;width:99%;margin-right:2px;display:none">${bodyhtml}</textarea>
+                <textarea id="markdown" style="height:200px;max-width:99%;width:99%;margin-right:2px;display:none">${markdown}</textarea>
+                <textarea id="css" style="height:200px;max-width:99%;width:99%;margin-right:2px;display:none">${cssText}</textarea>
+                <textarea id="script" style="height:200px;max-width:99%;width:99%;margin-right:2px;display:none">${scriptText}</textarea>
+                <div id="preview" style="max-width:99%;width:99%;margin-right:2px;display:none"></div>
+            </div>
+            <div style="width:100%;text-align:center">
+                <div style="padding:5px">${source}</div>
+                <button l-on:click="${doSave}">Save</button>&nbsp;&nbsp;
+                <button l-if="${!source.trim().startsWith('http')}" l-on:click="${doReset}">Reset</button>
+            </div>
+        <style id="style">
+            label:hover {
+                text-decoration: underline
+            }
+        </style>
+        <script type="lightview/module">
+            const turndownService = new TurndownService({headingStyle:"atx",codeBlockStyle:"fenced",emDelimiter:"*"});
+            turndownService.keep(() => true);
+
+            const {html,css,script} = await import("../../types.js");
+            self.variables({
+                onTabClick:"function",
+                onPinClick:"function",
+                doSave: "function",
+                doReset:"function"
+            });
+            self.variables({
+                wysiwygPinned:"boolean",
+                bodyhtmlPinned:"boolean",
+                bodyhtml:html,
+                markdownPinned:"boolean",
+                markdown:html,
+                cssPinned:"boolean",
+                cssText:css,
+                scriptPinned:"boolean",
+                scriptText:script,
+                headhtmlPinned:"boolean",
+                headhtml:html,
+                previewPinned:"boolean",
+                source:"string",
+            },{reactive});
+            self.variables({
+                src:"string",
+            },{imported});
+
+            bodyhtmlPinned = true;
+
+            const loadFromFile = async () => {
+                const html = await fs.readFile(url.pathname,{encoding:"utf8"});
+                source = `IndexedDB://${url.hostname+"_repl"}${url.pathname}`;
+                return html;
+            };
+
+            const loadFromServer = async () => {
+                const response = await fetch(url.href);
+                const html = await response.text();
+                source = url.href;
+                return html;
+            };
+
+            const parseFullHTML = (fullHTML) => {
+                const parser = new DOMParser(),
+                    fragment = parser.parseFromString(fullHTML,"text/html"),
+                    body_el = fragment?.querySelector("body"),
+                    style_el = fragment?.querySelector("style"),
+                    script_el = body_el?.querySelector("script");
+                if(style_el) {
+                    cssText = style_el?.innerHTML;
+                    style_el.remove();
+                } else {
+                    cssText = "";
+                }
+                if(script_el) {
+                    scriptText = script_el?.innerHTML,
+                    script_el.remove();
+                } else {
+                    scriptText = "";
+                }
+                headhtml = fragment?.head.innerHTML || "";
+                bodyhtml = body_el?.innerHTML;
+            };
+
+            let fs,
+                url;
+            if(src) {
+                url = new URL(src,window.location.href);
+                fs = new LightningFS(url.hostname+"_repl").promises;
+                try {
+                    parseFullHTML(await loadFromFile());
+                } catch(e) {
+                    try {
+                        parseFullHTML(await loadFromServer());
+                    } catch(e) {
+                        fullHTML = e.message;
+                    }
+                }
+            } else {
+                url = new URL(window.location.href);
+                fs = new LightningFS(url.hostname+"_repl").promises;
+                bodyhtml = "";
+                headhtml = "";
+                scriptText = "";
+                cssText = "";
+            };
+
+            // initialize variables
+            markdown = "";
+
+            const tabs = [...self.querySelectorAll("label[for]")]
+                .map((label) => {
+                    const id = label.getAttribute("for");
+                    return [id,self.getElementById(id),label];
+                });
+
+            const showTab = (targetid) => {
+                tabs.forEach(([id,el,label]) => {
+                    if(id===targetid || self.varsProxy[`${id}Pinned`]) {
+                        el.style.display = "unset";
+                    } else if(!self.varsProxy[`${id}Pinned`]) {
+                        el.style.display = "none";
+                    }
+                });
+            };
+
+            const hideTab = (targetid) => {
+                tabs.forEach(([id,el,label]) => {
+                    if(id===targetid) el.style.display = "none";
+                });
+            };
+
+            onTabClick = (event) => {
+                showTab(event.target.getAttribute("for"));
+            };
+
+            onPinClick = (event) => {
+                const id = event.target.getAttribute("for"),
+                    checked = self.varsProxy[`${id}Pinned`] = event.target.checked;
+                if(checked) onTabClick(event);
+                else hideTab(id);
+            };
+
+            doSave = async () => {
+                const parts = url.pathname.split("/");
+                let dir = "";
+                parts.shift();parts.pop();
+                for(const part of parts) {
+                    dir = dir + "/" + part;
+                    try {
+                        await fs.mkdir(dir);
+                    } catch(e) {
+                        if(e.message==="EEXIST") break;
+                        throw e;
+                    }
+                }
+                fs.writeFile(url.pathname,doPreview(),{encoding:"utf8"},()=>{});
+                source = `IndexedDB://${url.hostname+"_repl"}${url.pathname}`;
+            };
+
+            doReset = async () => {
+                try {
+                    await fs.unlink(url.pathname);
+                } catch(e) {
+
+                }
+                if(src) {
+                    try {
+                        parseFullHTML(await loadFromServer());
+                        doPreview();
+                    } catch(e) {
+                        previewEl.innerHTML = fullHTML = e.message;
+                    }
+                } else {
+                    bodyhtml = "";
+                    headhtml = "";
+                    scriptText = "";
+                    cssText = "";
+                    previewEl.innerHTML = "";
+                }
+            };
+
+            const doPreview = () => {
+                // not quite write, createComponent needs to be reworked to handle a head and import its links
+                const template = document.createElement("template");
+                template.innerHTML = bodyhtmlEl.value + "<style>" + cssText + "</style>" + '<script type="lightview/module">' + scriptText + "<" + "/script>";
+                const component = window.customElements.get("x-preview");
+                if(component) { component.setTemplateNode(template); }
+                else { Lightview.createComponent("x-preview",template); }
+                previewEl.innerHTML = "<x-preview></x-preview>";
+                return "<html><head>"+headhtml+"</head><body>"+template.innerHTML+"<body></html>"
+            };
+
+            const wysywigEl = self.getElementById("wysiwyg"),
+                markdownEl = self.getElementById("markdown"),
+                bodyhtmlEl = self.getElementById("bodyhtml"),
+                headhtmlEl = self.getElementById("headhtml"),
+                tabsEl = self.getElementById("tabs"),
+                styleEl = self.getElementById("style"),
+                previewEl = self.getElementById("preview");
+
+            let prevmarkdown; // prevents indirect recursion
+            observe(() => {
+                const text = turndownService.turndown(bodyhtml).trim();
+                if(text && text!==prevtext) {
+                    markdown = markdownEl.innerHTML = prevmarkdown = text;
+                }
+            });
+
+            let prevbodyhtml; // prevents indirect recursion
+            observe(() => {
+                const html = marked.parse(markdown).trim();
+                if(html && html!==prevbodyhtml) {
+                    bodyhtml =  bodyhtmlEl.innerText  = prevbodyhtml = html;
+                }
+            });
+
+            const initEditor = () => {
+
+            };
+
+            self.addEventListener("connected",() => {
+                initEditor();
+                doPreview();
+            });
+        </script>
+    </template>
+    <script src="../../lightview.js"></script>
+</head>
+<body style="min-height:95vh;">
+    <script>Lightview.createComponent("l-repl", document.getElementById("repl"));</script>
+    <l-repl style="min-height:95vh" src="../../examples/counter.html"><div id="editor" slot="editor" style="border:solid 1px;max-height:85vh;max-width:740px;overflow:auto;margin-bottom:5px;padding-left:10px;resize:both"></div></l-repl>
+    <script type="module">
+        //import {Sup} from "./sup.js";
+        import createGenericInlineTool,{ItalicInlineTool, UnderlineInlineTool, StrongInlineTool}  from "./editorjs-inline-tool/index.js";
+
+        const LinkToolToolbox = LinkTool.toolbox;
+        Object.defineProperty(LinkTool,"toolbox",{get() { return {...LinkToolToolbox,title:"Link With Preview"}}});
+        const InlineImageToolbox = InlineImage.toolbox;
+        Object.defineProperty(InlineImage,"toolbox",{get() { return {...InlineImageToolbox,title:"Inline Image"}}});
+        const editorjsCodeflaskToolbox = editorjsCodeflask.toolbox;
+        Object.defineProperty(editorjsCodeflask,"toolbox",{get() { return {...editorjsCodeflaskToolbox,title:"Code"}}});
+
+        const editor = new EditorJS({
+            /**
+             * Id of Element that should contain the Editor
+             */
+            holder: "editor",
+
+            /**
+             * Available Tools list.
+             * Pass Tool's class or Settings object for each Tool you want to use
+             */
+            tools: {
+                header: Header,
+                list: List,
+                table: Table,
+                embed: Embed,
+                linkWithPreview: LinkTool,
+                image: {
+                    class: InlineImage,
+                    inlineToolbar: true,
+                    config: {
+                        embed: {
+                            display: true,
+                        },
+                        unsplash: {
+                            appName: 'Lightview',
+                            clientId: 'nRe-dHABvjv2shxyvDFQd3Y9MPni77qBG9ImAVH0wig'
+                        }
+                    }
+                },
+                imageGallery: ImageGallery,
+                sup: {
+                    class: createGenericInlineTool({
+                        sanitize: { sup: {} },
+                        shortcut: "CMD+^",
+                        tagName:"SUP",
+                        toolboxIcon: '<i class="fa fa-superscript"></i>'
+                    })
+                },
+                sub: {
+                    class: createGenericInlineTool({
+                        sanitize: { sub: {} },
+                        shortcut: "CMD+SHIFT+^",
+                        tagName:"SUB",
+                        toolboxIcon: '<i class="fa fa-subscript"></i>'
+                    })
+                },
+                code: {
+                    class: createGenericInlineTool({
+                        sanitize: { code: {} },
+                        tagName:"CODE",
+                        toolboxIcon: '<i class="fa fa-code"></i>'
+                    })
+                },
+                gist: Gist,
+                precode: editorjsCodeflask,
+                i: ItalicInlineTool,
+                u: UnderlineInlineTool,
+                tooltip: {
+                    class: Tooltip,
+                    config: {
+                        location: 'left',
+                        highlightColor: '#FFEFD5',
+                        underline: true,
+                        backgroundColor: '#154360',
+                        textColor: '#FDFEFE',
+                        holder: 'editor',
+                    }
+                }
+                //strong: StrongInlineTool, redundant with bold, which really needs to be replaced
+                // https://github.com/hata6502/editorjs-style use as a base for input fields editor
+            },
+        })
+    </script>
+</body>
+</html>

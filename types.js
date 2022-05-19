@@ -356,6 +356,15 @@ const string = ({coerce=false, required = false,whenInvalid = ifInvalid, maxleng
     }
 }
 
+const html = (...args) => string(...args);
+html.safe = true;
+
+const css = (...args) => string(...args);
+css.safe = true;
+
+const script = (...args) => string(...args);
+script.safe = true;
+
 
 const validateSymbol  = function(value,variable) {
     if(value===undefined && variable.value===undefined) {
@@ -522,4 +531,4 @@ const remote = (config) => {
 
 const remoteGenerator = handleRemote;
 
-export {ValidityState,any,array,boolean,duration,number,object,remote,remoteGenerator,string,symbol,reviver}
+export {ValidityState,any,array,boolean,duration,number,object,remote,remoteGenerator,string,symbol,reviver,html,css,script}

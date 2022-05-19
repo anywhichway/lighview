@@ -7,26 +7,27 @@
         <p>
             Play: <input type="checkbox" value="${run}">
         </p>
-        <script type="lightview/module">
-      self.variables({
-        run: "boolean"
-      },{reactive});
-      self.variables({
-        name: "string"
-      }, {
-        imported
-      });
-      addEventListener("change", ({
-        variableName,
-        value
-      }) => {
-      debugger;
-        if (variableName === "run" && value === true) {
-          self.siblings.forEach((sibling) => {
-            sibling.setVariableValue(variableName, false);
-          })
-        }
-      })
+        <script id="lightview">
+            (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+                self.variables({
+                    run: "boolean"
+                }, {reactive});
+                self.variables({
+                    name: "string"
+                }, {
+                    imported
+                });
+                addEventListener("change", ({
+                        variableName,
+                        value
+                    }) => {
+                    if (variableName === "run" && value === true) {
+                        self.siblings.forEach((sibling) => {
+                            sibling.setVariableValue(variableName, false);
+                        })
+                    }
+                });
+            }
     </script>
     </template>
     <title>Lightview:Examples:XOR</title>

@@ -97,9 +97,17 @@ const chart = (self,{packages = ["corechart"],options={},columns=[],rows=[],type
         self.dispatchEvent(new Event("mounted"));
     };
     self.addEventListener("connected", ({target}) => {
-        google.charts.load("current", {"packages":packages});
-        google.charts.setOnLoadCallback(self.init);
+        const gscript = document.createElement("script");
+        gscript.setAttribute("src","https://www.gstatic.com/charts/loader.js");
+        gscript.onload = () => {
+            google.charts.load("current", {"packages":packages});
+            google.charts.setOnLoadCallback(self.init);
+        };
+        self.appendChild(gscript);
     });
+    const jscript = document.createElement("script");
+    jscript.setAttribute("src","https://unpkg.com/json5@^2.0.0/dist/index.min.js");
+    document.head.appendChild(jscript);
 }
 
 export {chart};
