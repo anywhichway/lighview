@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Imported and Exported Variables</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+<div class="markdown">
+<h2>Imported and Exported Variables</h2>
+
+In addition to being `reactive`, variables can be `imported` from and `exported` to attributes. During this process,
+type coercion occurs.
+
+If `imported` variables will never change or you plan to implement DOM updates in an alternate manner, you do not need to declare
+them as `reactive`.
+
+Variables can also be automatically exported. Try cut/paste replace the code with the below.
+
+```javascript
+currentComponent.mount = function() {
+    this.variables({data:Array},{imported});
+    this.variables({response:Array},{exported});
+    response = '["You","are","in","a","handbasket"]';
+    // for demo, since this code is run in a sandbox REPL, attribute changes do not render to the UI
+    const el = document.createElement("div");
+    el.innerText = self.getAttribute("response");
+    this.shadowRoot.appendChild(el);
+}
+```
+
+Variables that are `exported` will always update a component's attributes when they change, they do not need to be
+`reactive` unless you plan to use them elsewhere.
+
+*Note*: Because the script is run in a sandbox for security, the REPL itself does not update; hence, the attribute
+value is retrieved and appended to the result to demonstrate that `exported` works.
+
+There is an additional core functional type `shared` that shares its value across all instanced of the same
+component. See the [API documentation](../api.html) for more information.
+
+There are also some extended functional types like `remote` to get a variable value from a URL and `constant`. These are
+[demonstrated later](./5-extended-functional-types.html).
+
+See the API documentation on [variables](../api.html#variables) and [imported](../api.html#imported) or
+[exported](../api.html#exported).
+
+</div>
+    <button class="nav-previous"><a href="./1-intro-to-variables.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./3-data-types.html" target="content">Next</a></button>
+
+</div>
+<div class="repl">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+            <l-head>
+<script src="../javascript/lightview.js?as=x-body"></script>
+            </l-head>
+            <l-body data="Hello,there,world">
+${data.join(" ")}!
+            </l-body>
+            <script id="lightview">
+currentComponent.mount = function() {
+    this.variables({data:Array},{imported});
+}
+            </script>
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

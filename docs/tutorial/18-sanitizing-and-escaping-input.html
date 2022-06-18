@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Sanitizing and Escaping HTML</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+## Sanitizing and Escaping HTML
+
+Lightview "sanitizes" templates before attempting to resolve them by making suspicious code unparseable. The result is that the template will simply
+not be replaced in the component. If resolution is successful and the target node is an HTMLElement or Attr, it takes the result of the template
+interpolation and escapes all HTML characters before inserting the value into the DOM. If the target node is a TextNode,
+no escaping is conducted because it is not needed. The DOM will not try to treat the content of a text node like it is HTML, even if it looks like HTML.
+Surprisingly, most of the time, the target will be a TextNode.
+
+Note that the only successful substitutions in the REPL are for the button label and the value of `test` plus 1.
+
+See the API documentation on [Lightview.sanitizeTemplate](../api.html#sanitizeTemplate) and [Lightview.escapeHTML](../api.html#escapeHTML).
+
+This concludes the tutorial. Feel free to post questions to the <a href="https://github.com/anywhichway/lightview/issues" target="_tab">
+GitHub issues page</a>.
+
+    </div>
+    <button class="nav-previous"><a href="./17-loop-directives.html" target="content">Previous</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    <p>
+        <button l-on:click="${bump}">Click count:${count}</button>
+    </p>
+    <div style="margin:20px">
+        <h1>Test:${test + 1}</h1>
+        ${"<h1>Test:"+(test++)+"</h1>"}
+        <p>
+            ${(while (test)<10 { test++}; test)}
+        </p>
+        <p>
+            ${(() =>test)()}
+        </p>
+        <p>
+            ${(() = >test)()}
+        </p>
+        <p>
+            ${function(){return \${test}})()}
+        </p>
+    </div>
+</l-body>
+<script id="lightview">
+    currentComponent.mount = async function() {
+        self.variables({count: "number",test:"number"}, {reactive,set:0});
+        self.bump = () => count++;
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

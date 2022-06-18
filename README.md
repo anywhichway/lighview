@@ -1,8 +1,8 @@
-# lightview v1.8.1b (BETA)
+# lightview v1.8.2
 
 Small, simple, powerful web UI and micro front end creation ...
 
-Great ideas from Svelte, React, Vue and Riot combined into one small tool: < 7.5K (minified/gzipped).
+Great ideas from Svelte, React, Vue and Riot combined into one small (but not tiny) tool: < 8K (minified/gzipped).
 
 See the docs and examples at [https://lightview.dev](https://lightview.dev).
 

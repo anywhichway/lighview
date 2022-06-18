@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview</title>
+    <link rel="stylesheet" href="css/highlightjs.min.css">
+    <script src="javascript/highlightjs.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+<body style="min-width:100%;height:98vh;overflow:hidden">
+<div id="tabs" style="display:flex;flex-direction:row;min-width:100%;border-bottom:1px solid;padding-bottom:5px;">
+    <span style="flex-grow:0.2;">
+      <a href="./lightview.html" target="content">Lightview</a>
+    </span>
+    <span style="flex-grow:0.4;text-align:center">
+      <a href="./tutorial/0-getting-started.html" target="content" as="l-tutorial-1">Tutorial</a>
+      <a href="./comparedto.html" target="content">Compared To</a>
+      <a href="./api.html" target="content">API</a>
+      <a href="./components/chart-repl.html" target="content">Components</a>
+      <a href="./websiterepl.html" target="content">REPL</a>
+    </span>
+    <span style="flex-grow:0.2;text-align:right;">
+      <a class="tabctrl" href="https://github.com/anywhichway/lightview" target="_other">GitHub</a> 
+      <a class="tabctrl" href="https://www.npmjs.com/package/lightview" target="_other">NPM</a>
+    </span>
+</div>
+<iframe name="content" style="width:100%;" src="lightview.html"></iframe>
+<style id="style">
+    a  {
+        font-size:  x-large;
+        color: black;
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
+    a:hover {
+        color: blue;
+    }
+</style>
+<script>
+    document.querySelector("iframe").style.height = (document.body.clientHeight - document.getElementById("tabs").clientHeight)+"px"
+</script>
+</body>
+</html>

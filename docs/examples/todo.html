@@ -1,0 +1,40 @@
+<html>
+<body>
+<script src="./javascript/lightview.js?as=x-body"></script>
+<input name="New Todo" value="${newItem}" placeholder="new todo item...">
+<button l-on:click="${addToList}">Add ToDo</button>
+<div l-for="${todoList}">
+    <input value="${item.done}" type="checkbox">
+    <span class="${item.done ? 'checked' : ''}">${item.text}</span>
+    <span l-on:click="({self}) => self.removeFromList(${index})">X</span>
+    <br/>
+</div>
+<script id="lightview">
+    Lightview.createInputVariables = true;
+    currentComponent.mount = function() {
+        this.variables(
+            {
+                todoList: Array
+            },
+            {
+                reactive,
+                set: [
+                    {text: 'Write my first post', done: true},
+                    {text: 'Upload the post to the blog', done: false}
+                ]
+            }
+        );
+        this.addToList = () => {
+            todoList = [...todoList, {text: newItem, done: false}];
+            newItem = '';
+        };
+        this.removeFromList = (index) => {
+            todoList.splice(index, 1);
+        };
+    }
+</script>
+<style>
+    .checked { text-decoration: line-through; }
+</style>
+</body>
+</html>

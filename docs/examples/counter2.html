@@ -1,0 +1,26 @@
+<head>
+    <title>Lightview:Examples:Counter</title>
+    <script src="../../lightview.js?as=x-body"></script>
+</head>
+
+<body>
+<p>
+    <button l-on:click="${bump}">Click count:${count}</button>
+</p>
+
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        this.variables({count: "number",}, {reactive,set:0});
+        this.bump = () => count++;
+    }
+</script>
+
+<style>
+    button {
+        margin: 20px;
+        background: gray
+    }
+</style>
+</body>
+
+</html>

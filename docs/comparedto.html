@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:ComparedTo</title>
+    <script src="./javascript/highlightjs.min.js"></script>
+    <script src="./javascript/marked.min.js"></script>
+    <script src="./javascript/utils.js"></script>
+    <style>
+        table { border: lightgray; border-style: solid; border-collapse: collapse; width: 100%}
+        thead th:nth-child(1) {
+            width: 15%;
+        }
+        thead th:nth-child(2) {
+            width: 17%;
+        }
+        thead th:nth-child(3) {
+            width: 17%;
+        }
+        thead th:nth-child(4) {
+            width: 17%;
+        }
+        thead th:nth-child(5) {
+            width: 17%;
+        }
+        thead th:nth-child(6) {
+            width: 17%;
+        }
+        th { text-align: left;  border: lightgray; border-style: solid; padding: 5px;  }
+        td { text-align: left;  border: lightgray; border-style: solid; padding: 5px;  }
+    </style>
+</head>
+<body>
+    <div class="markdown">
+|           |Lightview |Svelte   |Vue       |React     |Riot      |
+|-----------|----------|---------|----------|----------|----------|
+| *Size*    | 8.5K+        | 1.5K+       | 29K+        | 42K+        | 6.5K+        |
+| *Community Size*    | Tiny        | Large       | Very Large        | Very Large        | Medium        |
+| *Created*    | 2022 | 2015       | 2014        |    2011     | 2013        |
+| *Focus*    | Small to Medium Projects | Any       | Any        | Any        | Any        |
+| *Preprocessor*    | No        | Yes       | For Components        | Yes        | Yes        |
+| *DOM Updates*    | Dependency Tracker      | Dependency Tracker       | VDOM        | VDOM        | DOM Traversal        |
+| *Fully Reactive<sup>1</sup>*    | Yes        | Yes       | Yes        | No        | No        |
+| *Two Way Data Binding<sup>2</sup>*    | Optional        | No       | No        | No        | No        |
+| *Closeness To JavaScript<sup>3</sup>*    | 90%        | 95%       | 80%        | 60%        | 90%        |
+| *Basic Learning Curve<sup>4</sup>*    | Very Low        | Very Low       | Low        | High        | Very Low        |
+| *Power Use Learning Curve<sup>5</sup>*    | Moderate        | Moderate       | High        | Very High        | Low        |
+| *Officially Supported Router* | Future | Yes | Yes | No | Yes |
+| *Officially Supported State Management<sup>6</sup>* | Yes | Yes | Yes | No | ? |
+| *Officially Supported Transition Effects* | No | Yes | Yes | No | No |
+| *Officially Supported Components* | Yes | ? | ? | ? | ? |
+
+
+A version of the most [prevelant UI tool benchmark](https://krausest.github.io/js-framework-benchmark/current.html)
+from Krausest has yet to be published. Internal use of this benchmark shows the current performance of Lightview is close to
+that of Ember (sometimes faster, sometimes slower). It is often as fast or slightly faster than React and sometimes as fast as Vue.
+It is never as fast as Svelte. This should be adequate for many applications. Remember, it is not the
+number of users that impacts a UI library, it is the size and change rate of the DOM that needs to be updated. If
+you don't have thousands of nodes to update or changes of an extremely high frequency, then you should be able to deliver a
+good user experience with Lightview.
+
+1. Fully Reactive - Both React and Riot require you to instrument your application with some type of event handlers to
+propagate change. Lightview, Svelte, and Vue can propagate change automatically.
+
+2. Closeness To JavaScript - A rough approximation of how "traditional" your code can be and how few extra conventions you need to learn
+to be productive. In general, this relates to the use of state management, attribute directives, annotations, and language additions that
+can't be processed like regular JavaScript.
+
+3. Two-way data binding is much maligned. We do understand the issues of tracing data changes through a large application developed over an extended
+period of time by multiple-developers. That being said, Lightview works hard to prevent vicious cycles that creat hard to track bugs and is
+extraordinarily declarative. It is left to you to decide if you want to use two-way data binding. All variables can be monitored with a simple
+call to `addEventListener` without declaring them as `reactive`.
+
+4. The learning curves for React are shown as High and Very High due the need to learn JSX, the programming style required, and the need to
+use hooks or manage a fair number of lifecyle events directly. We know this may create some lash back, but we believe the extent of this
+need sometimes makes things as bad as un-restrained use of two-way data binding.
+
+5. Riot is listed as `Low` for power use learning curve because it does not provide a lot of extras. This is not to say it isn't powerful, Riot
+focuses on minimalistic simplicity. You can use the rest of JavaScript's native functionality to accomplish what you need.
+
+6. State in Lightview is managed with a combination of regular JavaScript objects and the variable functional types `imported`, `exported`, `observed`,
+`reactive`, `remote` and `shared`.
+
+    </div>
+    <script>
+        processMarkdown();
+    </script>
+</body>
+</html>

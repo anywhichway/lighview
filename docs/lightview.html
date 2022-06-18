@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview</title>
+    <script src="./javascript/highlightjs.min.js"></script>
+    <link href="./components/repl.html" rel="module">
+    <script src="./javascript/marked.min.js"></script>
+    <script src="./javascript/utils.js"></script>
+</head>
+<body>
+<script src="./javascript/lightview.js"></script>
+<div  class="markdown">
+Small, simple, powerful web UI and micro front end creation ...
+
+Great ideas from Svelte, React, Vue and Riot plus more combined into one small (but not tiny) tool: 8.5K (minified/gzipped)</p>
+
+#### What You Get
+
+1) No pre-deployment transpilation/compilation required.
+
+1) No virtual DOM. The Lightview dependency tracker targets just those nodes that need updates.
+
+1) Reactive [string template literals](./tutorial/1-intro-to-variables.html) for content and attribute value replacement.
+
+1) Automatic [import, export](./tutorial/2-imported-and-exported-variables.html) and [cross-component sync](./tutorial/5.1-extended-functional-types.html) for attributes/variables.
+
+1) Svelte like variable usage, i.e. write your state modifying code like normal code.
+
+1) TypeScript like [runtime type checking](./tutorial/3-data-types.html) of variables in components.
+
+1) [Extended variable type declarations](./tutorial/4-extended-data-types.html) including `min`, `max` and `step` on `number` or limits on `string` and `array` lengths.
+
+1) Automatic server retrieval and update of [variables declared as remote](./tutorial/5-extended-functional-types.html).
+
+1) [Single file](./tutorial/9-intro-to-components.html) and [template](./tutorial/10-template-components.html) components.
+
+1) [Automatic input field variable creation and binding](./tutorial/14-automatic-variable-creation.html).
+
+1) Attribute directives like [l-if](./tutorial/16-if-directive.html), and a powerful [l-for](./tutorial/17-loop-directives.html) that handles array and object keys, values, and entries.
+
+1) [Sandboxed remote components](#sandboxed-components) and micro front ends</a>.
+
+1) [Unit testable](#unit-testing) components and a [debug mode](#debugging) for using standard JavaScript debuggers</a>.
+
+1) A [component library](./components) including charts and gauges that work in Markdown files.
+
+A ToDo demo does not get much simpler than this:
+</div>
+<l-repl id="repl" style="min-height:95vh;min-width:600px;" src="./examples/todo.html" previewpinned hidetabs readonly maintainbody>
+    <div slot="bodyhtml"></div>
+</l-repl>
+<div  class="markdown">
+
+If you like what you get on the front-end with `Lightview`, check out our back-end reactive framework `Watchlight` at [https://watchlight.dev](https://watchlight.dev) or
+our time/clock library `Timewave` at [https://timewave.dev](https://timewave.dev).
+
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

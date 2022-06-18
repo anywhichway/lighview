@@ -33,7 +33,7 @@ if(document.body)  currentComponent = window.currentComponent = document.current
 var Lightview = window.Lightview = { };
 
 var {observe} = (() => {
-    let CURRENTOBSERVER;//, CURRENTNODE;
+    let CURRENTOBSERVER;
     const parser = new DOMParser();
 
     const templateSanitizer = (string) => {
@@ -46,19 +46,19 @@ var {observe} = (() => {
     Lightview.sanitizeTemplate = templateSanitizer;
 
     const escaper = document.createElement('textarea');
-    const escapeHTML = html => {
+    function escapeHTML(html) {
         escaper.textContent = html;
         return escaper.innerHTML;
     }
     Lightview.escapeHTML = escapeHTML;
 
-    const isArrowFunction = f => typeof(f)==="function" && (f+"").match(/\(*.*\)*\s*=>/g);
+    const isArrowFunction = (f) => typeof(f)==="function" && (f+"").match(/\(*.*\)*\s*=>/g);
 
-    const getTemplateVariableName = template => {
-        if(template && !template.includes("[") && /^\$\{[a-zA-z_0-9.]*\}$/g.test(template)) return template.substring(2, template.length - 1);
+    const getTemplateVariableName = (template) => {
+        if(template && /^\$\{[a-zA-z_0-9.]*\}$/g.test(template)) return template.substring(2, template.length - 1);
     }
 
-    const walk = (target,path,{depth=path.length-1,create}={}) => {
+    const walk = (target,path,depth=path.length-1,create) => {
         for(let i=0;i<=depth;i++) {
             target = (target[path[i]]==null && create ?  target[path[i]] = (typeof(create)==="function" ? Object.create(create.prototype) : {}) : target[path[i]]);
             if(target===undefined) return;
@@ -75,7 +75,7 @@ var {observe} = (() => {
     }
 
     // imports a component based on an anchor and replace content of a target node with an instance of the component
-    const anchorHandler = async event => {
+    const anchorHandler = async (event) => {
         event.preventDefault();
         const target = event.target;
         if (target === event.currentTarget) {
@@ -87,7 +87,7 @@ var {observe} = (() => {
             })
         }
     }
-    const getNameFromPath = path => {
+    const getNameFromPath = (path) => {
         const file = path.split("/").pop(),
             name = file.split(".")[0],
             parts = name.split("-");
@@ -95,7 +95,7 @@ var {observe} = (() => {
         return "l-" + name;
     }
     const observe = (f, thisArg, argsList = []) => {
-        let observer = (...args) => {
+        const observer = (...args) => {
             if(observer.cancelled) return;
             CURRENTOBSERVER = observer;
             try {
@@ -105,10 +105,7 @@ var {observe} = (() => {
             }
             CURRENTOBSERVER = null;
         }
-        observer.cancel = () => {
-            observer.cancelled = true;
-            return observer = null;
-        }
+        observer.cancel = () => observer.cancelled = true;
         observer();
         return observer;
     }
@@ -125,7 +122,14 @@ var {observe} = (() => {
         }
         if (toType === "boolean") {
             if ([1,"on", "checked", "selected","true"].includes(value)) return true;
-            if ([null,"",0,"false"].includes(value)) return false;
+            if (value == null || value === "") return false;
+            /*try {
+                const parsed = JSON.parse(value + "");
+                if (typeof (parsed) === "boolean") return parsed;
+                return [1, "on", "checked", "selected"].includes(parsed);
+            } catch (e) {
+                throw new TypeError(`Unable to coerce ${value} to 'boolean'`);
+            }*/
         }
         if (toType === "string") return value + "";
         const isfunction = typeof (toType) === "function";
@@ -164,37 +168,42 @@ var {observe} = (() => {
         }
         throw new TypeError(`Unable to coerce '${value}:${type}' to '${toType}'`)
     }
-    const Reactor = data => {
+    const Reactor = (data) => {
         if (data && typeof (data) === "object") {
             if (data.__isReactor__) return data;
-            let dependents = {};
-            const childReactors = new Set(),
-                //nodes = new Set(),
-                {proxy,revoke} = Proxy.revocable(data, {
+            const childReactors = [],
+                dependents = {},
+                proxy = new Proxy(data, {
                     get(target, property) {
                         if (property === "__isReactor__") return true;
-                        if (property === "revoke") return () => {
-                            dependents = {};
-                            childReactors.forEach((reactor) => reactor.revoke());
-                            revoke();
-                        };
+                        //if(property=== "__dependents__") return dependents;
+                        //if(property=== "__reactorProxyTarget__") return data;
                         if (target instanceof Array) {
-                            if (property === "toJSON") return function toJSON() { return [...target] }
-                            if (property === "toString") return function toString() { return JSON.stringify([...target]) }
+                            if (property === "toJSON") return function toJSON() { return [...target]; }
+                            if (property === "toString") return function toString() { return JSON.stringify([...target]); }
                         }
                         if(target instanceof Date) {
                             const value = data[property];
                             if(typeof(value)==="function") return value.bind(data);
                         }
                         let value = target[property];
-                        if(typeof (property) === "symbol") return value;
                         const type = typeof (value);
-                        if (type === "function") return ([Date].includes(value) || property==="then") ? value.bind(target) : value;
-                        if (CURRENTOBSERVER)  (dependents[property] ||= new Set()).add(CURRENTOBSERVER)
+                        if (CURRENTOBSERVER && typeof (property) !== "symbol" && type !== "function") {
+                            const observers = dependents[property] ||= new Set();
+                            observers.add(CURRENTOBSERVER)
+                        }
                         if(value===undefined) return;
-                        if (value==null || type !== "object" || childReactors.has(value)) return value;
-                        value = target[property] = Reactor(value);
-                        childReactors.add(value);
+                        if ((value && type !== "object") || typeof (property) === "symbol" || childReactors.includes(value)) {
+                            // Dates and Promises must be bound to work with proxies
+                            if (type === "function" && ([Date].includes(value) || property==="then")) value = value.bind(target)
+                            return value;
+                        }
+                        if (value && type === "object") {
+                            value = Reactor(value);
+                            childReactors.push(value);
+                            target[property] = value;
+                        }
+                       //  target[property] = value;
                         return value;
                     },
                     async set(target, property, value) {
@@ -206,7 +215,7 @@ var {observe} = (() => {
                         if (target[property] !== value) {
                             if (value && type === "object") {
                                 value = Reactor(value);
-                                childReactors.add(value);
+                                childReactors.push(value);
                             }
                             target[property] = value;
                             [...dependents[property] || []].forEach((f) => { // handle dependent observers
@@ -217,19 +226,16 @@ var {observe} = (() => {
                         return true;
                     }
                 });
-            //Object.entries(proxy).forEach(([key,value]) => proxy[key] = value);
             return proxy;
         }
         return data;
     }
 
-    const createVarsProxy = (vars, component, constructor) => {
-        const {proxy,revoke} = Proxy.revocable(vars, {
+   const createVarsProxy = (vars, component, constructor) => {
+        return new Proxy(vars, {
             get(target, property) {
                 if(property==="self") return component;
-                if(property === "revoke") return revoke;
                 if(target instanceof Date) return Reflect.get(target,property);
-                if(typeof(property)==="symbol") return target[property];
                 let {value,get} = target[property] || {};
                 if(get) return target[property].value = get.call(target[property]);
                 if (typeof (value) === "function") return value.bind(target);
@@ -263,9 +269,10 @@ var {observe} = (() => {
                     (typetype === "function" && !type.validate && (newValue && newtype === "object" && newValue instanceof type) || variable.validityState?.valid)) {
                     if (value !== newValue) {
                         event.oldValue = value;
-                        variable.value = reactive && !variable.__isReactor__ ? Reactor(newValue) : newValue; // do first to prevent loops
+                        if(target[property].__isReactor__) target[property] = newValue;
+                        else target[property].value = reactive ? Reactor(newValue) : newValue; // do first to prevent loops
                         target.postEvent.value("change", event);
-                        if (event.defaultPrevented) target[property].value = value;
+                        if (event.defaultPrevented) target[property].value = value; // set value back
                         else if(remote && ((variable.reactive && variable?.remote?.config.put!==false) || remote.put)) remote.handleRemote({variable,config: variable?.remote?.config},true);
                         else if(variable.set) variable.set(newValue);
                     }
@@ -290,7 +297,6 @@ var {observe} = (() => {
                 return [...Object.keys(vars)];
             }
         });
-        return proxy;
     }
     // this is a DOM observer, not an observer of the observer programming paradigm
     const createObserver = (domNode, framed) => {
@@ -311,7 +317,6 @@ var {observe} = (() => {
                     }
                 } else if (mutation.type === "childList") {
                     for (const target of mutation.removedNodes) {
-                        //target.lightviewProxies?.forEach((proxy) => proxy.forgetNode(target));
                         if (target.disconnectedCallback) target.disconnectedCallback();
                     }
                     for (const target of mutation.addedNodes) {
@@ -334,28 +339,31 @@ var {observe} = (() => {
         }
         return nodes;
     }
-    const getNodes = (root,href,nodes = new Set()) => {
+    const getNodes = (root,href,nodes=new Set()) => {
+        //const nodes = new Set();
         if (root.shadowRoot) {
             nodes.add(root);
-            getNodes(root.shadowRoot,href,nodes);
+            getNodes(root.shadowRoot,href,nodes);//.forEach((node) => nodes.add(node))
         } else {
             for (const node of root.childNodes) {
-                if (node.nodeType === Node.TEXT_NODE && (node.template || node.nodeValue?.includes("${"))) {
+                if (node.nodeType === Node.TEXT_NODE && node.nodeValue?.includes("${")) {
                     node.template ||= node.nodeValue;
                     nodes.add(node);
                 } else if (node.nodeType === Node.ELEMENT_NODE) {
                     let skip;
+                    //[...node.attributes].forEach((attr) => {
                     for(const attr of node.attributes) {
-                        if (attr.template || attr.value.includes("${")) {
+                        if (attr.value.includes("${")) {
                             attr.template ||= attr.value;
                             nodes.add(node);
-                        } else if (attr.name.startsWith("l-") || attr.name.includes(":")) {
+                        } else if (attr.name.includes(":") || attr.name.startsWith("l-")) {
                             skip = attr.name.includes("l-for:");
-                            nodes.add(node);
+                            nodes.add(node)
                         }
                     }
+                    //})
                     if (node.getAttribute("type") === "radio") nodes.add(node);
-                    if (!skip && !node.shadowRoot) getNodes(node,href,nodes);
+                    if (!skip && !node.shadowRoot) getNodes(node,href,nodes);//.forEach((node) => nodes.add(node));
                 }
             }
         }
@@ -376,7 +384,7 @@ var {observe} = (() => {
         return strings.reduce((result,string,index) => index < values.length ? result += string + values[index] : result + string,"");
     }
 
-    const resolveNodeOrText = (node, component, safe,extras={},skipSetAttribute) => {
+    const resolveNodeOrText = (node, component, safe,extras=node.extras||{},skipNodeUpdate) => {
         const type = typeof (node),
             template = type === "string" ? node.trim() : node.template;
         extras.populateTemplate = populateTemplate;
@@ -389,14 +397,17 @@ var {observe} = (() => {
                     ? (value = walk(extras,parts)) || (value = walk(component.varsProxy,parts)) || (value == null ? component[name] : value)
                     : Function("context", "extras", "with(context) { with(extras) { return populateTemplate`" + (safe ? template : Lightview.sanitizeTemplate(template)) + "` } }")(component.varsProxy,extras));
                 //let value = Function("context", "with(context) { return `" + Lightview.sanitizeTemplate(template) + "` }")(component.varsProxy);
-                if(typeof(value)==="function") return value;
+                if(typeof(value)==="function") return value.bind(component);
                 value = (name || node.nodeType === Node.TEXT_NODE || safe ? value : Lightview.escapeHTML(value));
                 if (type === "string") return value==="undefined" ? undefined : value;
-
-                if(!(skipSetAttribute && node.nodeType===Node.ATTRIBUTE_NODE)) {
+                node.rawValue = value;
+                if(!skipNodeUpdate) {
                     //requestAnimationFrame(() => {
-                    if(name) node.nodeValue = value==null ? "" : typeof(value)==="string" ? value : JSON.stringify(value);
-                    else node.nodeValue = value == "null" || value == "undefined" ? "" : value;
+                        if(name) {
+                            node.nodeValue = value==null ? "" : typeof(value)==="string" ? value : JSON.stringify(value);
+                        } else {
+                            node.nodeValue = value == "null" || value == "undefined" ? "" : value;
+                        }
                     //})
                 }
                 return value;
@@ -411,32 +422,22 @@ var {observe} = (() => {
         }
         return node?.nodeValue;
     }
-    const inputTypeToType = inputType => {
-        const map = {
-            text:"string",
-            tel:"string",
-            email:"string",
-            url:"string",
-            search:"string",
-            radio:"string",
-            color:"string",
-            password:"string",
-            number:"number",
-            range:"number",
-            datetime:Date,
-            checkbox:"boolean"
-        }
-        return map[inputType] || "any";
+    const inputTypeToType = (inputType) => {
+        if (!inputType) return "any"
+        if (["text", "tel", "email", "url", "search", "radio", "color", "password"].includes(inputType)) return "string";
+        if (["number", "range"].includes(inputType)) return "number";
+        if (["datetime"].includes(inputType)) return Date;
+        if (["checkbox"].includes(inputType)) return "boolean";
+        return "any";
     }
-    const enableAnchors = node => {
+    const enableAnchors = (node) => {
         for(const anode of node.querySelectorAll('a[href$=".html"][target^="#"]')) {
             anode.removeEventListener("click", anchorHandler);
             addListener(anode, "click", anchorHandler);
         }
     }
-    Object.defineProperty(Lightview,"enableAnchors",{value:enableAnchors});
-    //Lightview.enableAnchors = enableAnchors;
-
+    Lightview.enableAnchors = enableAnchors;
+    
     const bound = new WeakSet();
     const bindInput = (input, variableName, component, value, object) => {
         if (bound.has(input)) return;
@@ -452,9 +453,9 @@ var {observe} = (() => {
             if(avalue) value = avalue;
         }
         if(object && nameparts.length>1) {
-            const [root,...path] = nameparts,
-                key = path[path.length-1];
-            object = walk(object,path,{depth:path.length-2,create:true});
+            const [root,...path] = nameparts;
+            object = walk(object,path,path.length-2,true);
+            const key = path[path.length-1];
             object[key] =  coerce(value,type);
         } else {
             const existing = component.vars[variableName];
@@ -463,7 +464,7 @@ var {observe} = (() => {
                 if(existingtype!==type) throw new TypeError(`Attempt to bind <${input.tagName} name="${variableName}" type="${type}"> to variable ${variableName}:${existing.type}`)
                 existing.reactive = true;
             } else if(Lightview.createInputVariables) {
-                component.variables({[variableName]: type},{reactive,set:typeof(value)==="string" && value.startsWith("${") ? "" : value});
+                component.variables({[variableName]: type},{reactive,set:value});
             } else {
                 throw new TypeError(`Attempt to bind undefined variable ${variableName} to <${input.tagName} type="${type}>`)
             }
@@ -490,20 +491,30 @@ var {observe} = (() => {
             }
             if(object) {
                 const [root,...path] = nameparts;
-                object = walk(object,nameparts,{depth:path.length-2,create:true});
+                object = walk(object,nameparts,path.length-2,true);
             } else {
-                object = walk(component.varsProxy,nameparts,{depth:nameparts.length-2,create:true});
+                object = walk(component.varsProxy,nameparts,nameparts.length-2,true);
             }
             const key = nameparts[nameparts.length-1];
             object[key] =  coerce(value,type);
         };
         addListener(input, eventname, listener,component);
     }
-    const tryParse = value => {
+    const tryParse = (value) => {
         try {
             return JSON.parse(value);
         } catch (e) {
             return value;
+        }
+    }
+    const observed = () => {
+        return {
+            init({variable, component}) {
+                const name = variable.name;
+                variable.value = component.hasAttribute(name) ? coerce(component.getAttribute(name), variable.type) : variable.value;
+                variable.observed = true;
+                component.observedAttributes.add(name);
+            }
         }
     }
     const reactive = () => {
@@ -514,16 +525,24 @@ var {observe} = (() => {
             }
         }
     }
+    const shared = () => {
+        return {
+            init({variable, component}) {
+                variable.shared = true;
+                variable.set = function(newValue) {
+                    if(component.vars[this.name]?.shared) component.siblings.forEach((instance) => instance.setVariableValue(this.name, newValue));
+                }
+            }
+        }
+    }
     const exported = () => {
         return {
             init({variable, component}) {
-                const name = variable.name,
-                    set = variable.set || (() => {});
+                const name = variable.name;
                 variable.exported = true;
                 variable.set = (newValue) => {
-                    set(newValue);
-                    if(variable.exported) { // still exported
-                        if(variable.value==null) {
+                    if(variable.exported) {
+                        if(newValue==null) {
                             removeComponentAttribute(component, name);
                         } else {
                             const type = typeof(newValue);
@@ -545,17 +564,22 @@ var {observe} = (() => {
                 if((variable.type==="boolean" || variable.type.type==="boolean") && value==="") value = true;
                 variable.imported = true;
                 variable.value = value!=null ? coerce(value, variable.type) : variable.value;
-                if(variable.set) {
-                    variable.set(variable.value);
-                }
             }
         }
     }
 
     let reserved = {
+        observed: {
+            constant: true,
+            value: observed
+        },
         reactive: {
             constant: true,
             value: reactive
+        },
+        shared: {
+            constant: true,
+            value: shared
         },
         exported: {
             constant: true,
@@ -565,8 +589,7 @@ var {observe} = (() => {
             constant: true,
             value: imported
         }
-    }
-
+    };
     // patches relative references to use the passed in href as base
     const patchElementURIs = (node,tagName,attributeName,href) => { // attributeName will always be href or src
         if(node) {
@@ -575,21 +598,21 @@ var {observe} = (() => {
                 if (value) child.setAttribute(attributeName, new URL(value, href).href);
             }
         }
-    }
+    };
     // forces re-evaluation of scripts and links
-    const forceLoadElement = node => {
+    const forceLoadElement = (node) => {
         if((node.getAttribute("src")||"").includes("/lightview.js")) return;
         const el = document.createElement(node.tagName.toLowerCase());
-        for(const attr of node.attributes) el.setAttribute(attr.name,attr.value);
+        for(const attr of node.attributes) { el.setAttribute(attr.name,attr.value); }
         el.innerHTML = node.innerHTML;
         node.after(el);
         node.remove();
-    }
+    };
     const createClass = (domElementNode, {observer, framed, href= window.location.href.replace("blob:",""), mount}) => {
         const instances = new Set(),
             observedAttributes = [];
         let dom;
-        observedAttributes.add = function(name) { observedAttributes.includes(name) || observedAttributes.push(name) }
+        observedAttributes.add = function(name) { observedAttributes.includes(name) || observedAttributes.push(name); }
         const cls = class CustomElement extends HTMLElement {
             static get instances() {
                 return instances;
@@ -600,7 +623,7 @@ var {observe} = (() => {
                     : node.cloneNode(true);
                 if(node.tagName === "TEMPLATE") {
                     dom.innerHTML = node.innerHTML;
-                    for(const attr of node.attributes) dom.setAttribute(attr.name,attr.value);
+                    for(const attr of node.attributes) { dom.setAttribute(attr.name,attr.value) }
                 }
                 patchElementURIs(dom.head,"link","href",href);
                 patchElementURIs(dom.head,"script","src",href);
@@ -674,7 +697,7 @@ var {observe} = (() => {
                 for(const child of body.childNodes) {
                     if(child.tagName && customElements.get(child.tagName.toLowerCase())) {
                         const node = document.createElement(child.tagName);
-                        for(const attr of child.attributes) node.setAttribute(attr.name,attr.value);
+                        for(const attr of child.attributes) { node.setAttribute(attr.name,attr.value); }
                         //currentComponent = window.currentComponent = document.currentComponent = node;
                         shadow.appendChild(node);
                     } else {
@@ -682,7 +705,7 @@ var {observe} = (() => {
                         shadow.appendChild(clone);
                         if(["LINK","SCRIPT"].includes(clone.tagName)) forceLoadElement(clone);
                     }
-                }
+                };
                 //forceLoadElements(shadow,"link");
                 //forceLoadElements(shadow,"script");
                 //importStyleSheets(shadow,this);
@@ -706,130 +729,113 @@ var {observe} = (() => {
                 for(const attr of node.attributes) {
                     if(!this.hasAttribute(attr.name)) this.setAttribute(attr.name,attr.value);
                 }
-                if(mount ||= dom.mount||this.mount) {
+                if(dom.mount||mount) {
                     const script = document.createElement("script");
-                    document.currentComponent = this;
+                    window.currentComponent = document.currentComponent = this;
                     script.innerHTML = `with(document.currentComponent.varsProxy) { 
                         ${typeof(lightviewDebug)!=="undefined" && lightviewDebug===true ? "debugger;" : ""}
                         const component = document.currentComponent; 
-                        (async () => { await (${mount}).call(self,self); 
-                        component.compile();  })(); 
+                        (async () => { await (${dom.mount||mount}).call(self,self); 
+                        requestAnimationFrame(() => component.compile());  })(); 
                     };`;
                     this.appendChild(script);
                     script.remove();
-                    for(const child of this.querySelectorAll('link[rel="stylesheet"][export]')) { // ].forEach(async (child) =>
+                    for(const child of this.querySelectorAll('link[rel="stylesheet"][export]')) {
                         child.remove();
                         this.appendChild(child);
-                    }
+                    };
                     window.currentComponent = document.currentComponent = null;
                 }
             }
             compile() {
                 // Promise.all(promises).then(() => {
-                const shadow = this.shadowRoot,
-                    nodes = getNodes(this,href),
-                    processNodes = (nodes,{object,extras}={}) => { //rootName
+                const ctx = this,
+                    shadow = this.shadowRoot;
+                const nodes = getNodes(ctx,href),
+                    processNodes = (nodes,{object,rootName,extras}={}) => {
                         nodes.forEach((node) => {
+                            node.extras = extras;
                             if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
-                                observe(((node,ctx) => () => resolveNodeOrText(node, ctx,true,extras))(node,this));
+                                observe(() => resolveNodeOrText(node, this,true,node.extras));
                                 if(node.parentElement?.tagName==="TEXTAREA") {
                                     const name = getTemplateVariableName(node.template);
                                     if (name) {
                                         const nameparts = name.split(".");
-                                        if(extras && extras[nameparts[0]]) object = extras[nameparts[0]];
+                                        if(node.extras && node.extras[nameparts[0]]) {
+                                            object = node.extras[nameparts[0]];
+                                        }
                                         if(!this.vars[nameparts[0]] || this.vars[nameparts[0]].reactive || object) {
-                                            bindInput(node.parentElement, name, this, resolveNodeOrText(node.template, this,true,extras), object);
+                                            bindInput(node.parentElement, name, this, resolveNodeOrText(node.template, this,true,node.extras), object);
                                         }
                                     }
                                 }
                             } else if (node.nodeType === Node.ELEMENT_NODE) {
-                                if(node.tagName==="FORM") {
-                                    const value = node.getAttribute("value"),
-                                        name = getTemplateVariableName(value);
-                                    if(name) {
-                                        node.addEventListener("submit",(event) => {
-                                            if(!event.target.hasAttribute("action")) event.preventDefault();
-                                            const object = {};
-                                            [...node.querySelectorAll("input[name]"),...node.querySelectorAll("textarea[name]")]
-                                                .forEach((input) => {
-                                                    const eltype = input.getAttribute("type"),
-                                                        path = input.getAttribute("name").split("."),
-                                                        property = path[path.length-1],
-                                                        target = walk(object,path,{depth:path.length-2,create:true})
-                                                    if(["radio","checkbox"].includes(eltype)) {
-                                                        target[property] = input.checked;
-                                                    } else {
-                                                        target[property] = input.value;
-                                                    }
-                                                });
-                                            this.varsProxy[name] = object;
-                                        })
-                                    }
-                                    return;
-                                }
                                 // resolve the value before all else;
                                 const attr = node.attributes.value,
                                     template = attr?.template;
                                 if (attr && template) {
                                     //let value = resolveNodeOrText(attr, this),
                                     //   ;
-                                    const eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, this, false,extras) : null,
+                                    const eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx, false,node.extras) : null,
                                         aname = node.getAttribute("name"),
-                                        template = attr.template;// || (rootName && aname ? `\${${rootName}.${name}}` : null);
+                                        template = attr.template || (rootName && aname ? `\${${rootName}.${name}}` : null);
                                     if (template) {
                                         const name = getTemplateVariableName(template);
                                         if (name) {
                                             const nameparts = name.split(".");
-                                            if(extras && extras[nameparts[0]]) object = extras[nameparts[0]];
+                                            if(node.extras && node.extras[nameparts[0]]) {
+                                                object = node.extras[nameparts[0]];
+                                            }
                                             if(!this.vars[nameparts[0]] || this.vars[nameparts[0]].reactive || object) {
-                                                bindInput(node, name, this, resolveNodeOrText(attr, this,false,extras), object);
+                                                bindInput(node, name, this, resolveNodeOrText(attr, this,false,node.extras), object);
                                             }
                                         }
-                                        observe(((node,ctx,template) => () => {
-                                            const value = resolveNodeOrText(template, ctx,false,extras);
-                                            if(value!==undefined) {
-                                                if (eltype === "checkbox") {
-                                                    if (coerce(value, "boolean") === true) {
-                                                        node.setAttribute("checked", "");
-                                                        //node.checked = true; // do we need to do this and set attribute
-                                                    } else {
-                                                        node.removeAttribute("checked");
-                                                        //node.checked = false;
-                                                    }
-                                                } else if (node.tagName === "SELECT") {
-                                                    const values = node.hasAttribute("multiple") ? coerce(value, Array) : [value];
-                                                    [...node.querySelectorAll("option")].forEach(async (option) => {
-                                                        if (option.hasAttribute("value")) {
-                                                            if (values.includes(resolveNodeOrText(option.attributes.value, ctx,false,extras))) {
+                                        if(eltype==="checkbox" || eltype==="radio" || node.tagName==="SELECT") {
+                                            observe(() => {
+                                                const value = resolveNodeOrText(template, ctx, false, node.extras);
+                                                if (value !== undefined) {
+                                                    if (eltype === "checkbox") {
+                                                        if (coerce(value, "boolean") === true) {
+                                                            node.setAttribute("checked", "");
+                                                            //node.checked = true; // do we need to do this and set attribute
+                                                        } else {
+                                                            node.removeAttribute("checked");
+                                                            //node.checked = false;
+                                                        }
+                                                    } else if (node.tagName === "SELECT") {
+                                                        const values = node.hasAttribute("multiple") ? coerce(value, Array) : [value];
+                                                        for(const option of node.querySelectorAll("option")) {
+                                                            if (option.hasAttribute("value")) {
+                                                                if (values.includes(resolveNodeOrText(option.attributes.value, ctx, false, node.extras))) {
+                                                                    option.setAttribute("selected", "");
+                                                                    //option.selected = true;
+                                                                }
+                                                            } else if (values.includes(resolveNodeOrText(option.innerText, ctx, false, node.extras))) {
                                                                 option.setAttribute("selected", "");
                                                                 //option.selected = true;
                                                             }
-                                                        } else if (values.includes(resolveNodeOrText(option.innerText, ctx,false,extras))) {
-                                                            option.setAttribute("selected", "");
-                                                            //option.selected = true;
                                                         }
-                                                    })
-                                                } else if (eltype!=="radio") {
-                                                    //attr.value = typeof(value)==="string" ? value : JSON.stringify(value);
-                                                    let avalue = typeof(value)==="string" ? value : value.toString ? value.toString() : JSON.stringify(value);
-                                                    if(avalue.startsWith('"')) avalue = avalue.substring(1);
-                                                    if(avalue.endsWith('"')) avalue = avalue.substring(0,avalue.length-1);
-                                                    attr.value = value;
-                                                    if(node.tagName==="INPUT") node.value = value;
+                                                    } else if (eltype !== "radio") {
+                                                        //attr.value = typeof(value)==="string" ? value : JSON.stringify(value);
+                                                        let avalue = typeof (value) === "string" ? value : value.toString ? value.toString() : JSON.stringify(value);
+                                                        if (avalue.startsWith('"')) avalue = avalue.substring(1);
+                                                        if (avalue.endsWith('"')) avalue = avalue.substring(0, avalue.length - 1);
+                                                        attr.value = avalue;
+                                                    }
                                                 }
-                                            }
-                                        })(node,this,template));
+                                            });
+                                        }
                                     }
                                 }
                                 for(const attr of node.attributes) {
-                                    if (attr.name === "value" && attr.template) continue;
+                                    if (attr.name === "value" && attr.template) return;
                                     const {name, value} = attr,
                                         vname = node.attributes.name?.value;
-                                    if (value.includes("${")) attr.template = value;
-                                    if (name === "type" && value == "radio" && vname) {
+                                    if(value.includes("${")) attr.template = value;
+                                    if (name === "type" && value=="radio" && vname) {
                                         bindInput(node, vname, this, undefined, object);
-                                        observe(((node,ctx) => () => {
-                                            const varvalue = Function("context", "with(context) { return `${" + vname + "}` }")(ctx.varsProxy);
+                                        observe(() => {
+                                            const varvalue =  Function("context", "with(context) { return `${" + vname + "}` }")(ctx.varsProxy);
                                             if (node.attributes.value.value == varvalue) {
                                                 node.setAttribute("checked", "");
                                                 node.checked = true;
@@ -837,102 +843,110 @@ var {observe} = (() => {
                                                 node.removeAttribute("checked");
                                                 node.checked = false;
                                             }
-                                        })(node,this));
+                                        });
                                     }
+
                                     const [type, ...params] = name.split(":");
                                     if (type === "") { // name is :something
-                                        observe(((node,attr,ctx)=>() => {
+                                        observe(() => {
                                             const value = attr.value;
                                             if (params[0]) {
                                                 if (value === "true") node.setAttribute(params[0], "")
                                                 else node.removeAttribute(params[0]);
                                             } else {
-                                                const elvalue = node.attributes.value ? resolveNodeOrText(node.attributes.value, ctx, false, extras) : null,
-                                                    eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx, false, extras) : null;
+                                                const elvalue = node.attributes.value ? resolveNodeOrText(node.attributes.value, ctx,false,node.extras) : null,
+                                                    eltype = node.attributes.type ? resolveNodeOrText(node.attributes.type, ctx,false,node.extras) : null;
                                                 if (eltype === "checkbox" || node.tagName === "OPTION") {
                                                     if (elvalue === true) node.setAttribute("checked", "")
                                                     else node.removeAttribute("checked");
                                                 }
                                             }
-                                        })(node,attr,this))
+                                        })
                                     } else if (type === "l-on") {
                                         let listener;
-                                        observe(((node,attr,ctx) => () => {
-                                            const value = resolveNodeOrText(attr, ctx, true, extras,true);
-                                            if (listener) node.removeEventListener(params[0], listener);
-                                            listener = null;
-                                            if (typeof (value) === "function") {
-                                                listener = value;
-                                            } else {
-                                                try {
-                                                    listener = Function("return " + value)();
-                                                } catch (e) {
+                                        //setTimeout(() => {
+                                            observe(() => {
+                                                const value = resolveNodeOrText(attr, this,true,node.extras,true);
+                                                if (listener) node.removeEventListener(params[0], listener);
+                                                listener = null;
+                                                if(typeof(value)==="function") {
+                                                    listener = value;
+                                                } else {
+                                                    try {
+                                                        listener = Function("return " + value)();
+                                                    } catch(e) {
 
-                                                }
-                                            }
-                                            if (listener) addListener(node, params[0], listener, ctx);
-                                        })(node,attr,this))
-                                    } else if (type === "l-if") {
-                                        observe(((node,attr,ctx) => () => {
-                                            const value = resolveNodeOrText(attr, ctx, true, extras);
-                                            node.style.setProperty("display", value == true || value === "true" ? "revert" : "none");
-                                        })(node,attr,this))
-                                    } else if (type === "l-for") {
-                                        //node.template ||= node.innerHTML;
-                                        //node.clone ||= node.cloneNode(true);
-                                        let clone = node.cloneNode(true),
-                                            observer = observe(((node,attr,ctx) => () => {
-                                                const [what = "each", vname = "item", index = "index", array = "array", after = false] = params;
-                                                /*if (!window.lightviewDebug) {
-                                                    requestAnimationFrame(() => {
-                                                        if (after) node.style.setProperty("display", "none")
-                                                        else node.innerHTML = "";
-                                                    })
-                                                }*/
-                                                const value = resolveNodeOrText(attr, ctx, false, extras,true),
-                                                    coerced = coerce(value, what === "each" ? Array : "object"),
-                                                    target = what === "each" ? coerced : Object[what](value),
-                                                    children = target.reduce((children, item, i, target) => {
-                                                        const node = clone.cloneNode(true),
-                                                            extras = {
-                                                                [vname]: item,
-                                                                [index]: i,
-                                                                [array]: target
-                                                            },
-                                                            nodes = getNodes(node, href);
-                                                        processNodes(nodes,{extras});
-                                                        children.push(...node.childNodes);
-                                                        return children;
-                                                    }, []);
-                                                requestAnimationFrame(() => {
-                                                    if(children.length===0) {
-                                                        node.innerHTML = ""
-                                                    } else {
-                                                        children.forEach((child,i) => {
-                                                            if (after) node.parentElement.insertBefore(child, node);
-                                                            else if(node?.childNodes[i]) {
-                                                                const old = node.childNodes[i];
-                                                                node.replaceChild(child,old);
-                                                            }
-                                                            else node.appendChild(child);
-                                                        })
-                                                        while(node.childNodes.length>children.length) node.lastChild.remove();
                                                     }
+                                                }
+                                                if(listener) addListener(node, params[0], listener,ctx);
+                                            })
+                                       // })
+                                    } else if (type === "l-if") {
+                                        observe(() => {
+                                            const value = resolveNodeOrText(attr, this,true,node.extras);
+                                            node.style.setProperty("display", value == true || value === "true" ? "revert" : "none");
+                                        })
+                                    } else if (type === "l-for") {
+                                        node.template ||= node.innerHTML;
+                                        node.clone ||= node.cloneNode(true);
+                                        const [what = "each", vname = "item", index = "index", array = "array", after = false] = params;
+                                        observe(() => {
+                                            const value = resolveNodeOrText(attr, this,false,node.extras,true),
+                                                coerced = coerce(value, what === "each" ? Array : "object"),
+                                                target = what === "each" ? coerced : Object[what](coerced);
+                                            let length = target.length * node.children.length;
+                                            if (!window.lightviewDebug) {
+                                                if (after) node.style.setProperty("display", "none")
+                                                else if (length===0) while(node.lastElementChild) node.lastElementChild.remove();
+                                                else while (node.lastElementChild && length--) node.lastElementChild.remove();
+                                            }
+                                            length = target.length * node.children.length;
+                                            //requestAnimationFrame( () => {
+                                                target.forEach((item,i,target) => {
+                                                    const clone = node.clone.cloneNode(true),
+                                                        extras = node.extras = {
+                                                            [vname]: item,
+                                                            [index]: i,
+                                                            [array]: target
+                                                        };
+                                                    processNodes(getNodes(clone,href),{extras});
+                                                    [...clone.childNodes].forEach((child,j) => {
+                                                        const position = i + j;
+                                                        if (after) node.parentElement.insertBefore(child, node);
+                                                        else if(position<length) node.replaceChild(child,node.children[position])
+                                                        else node.appendChild(child);
+                                                    });
                                                 });
-                                            })(node,attr,this,extras))
-                                    } else if (attr.template) {
-                                        observe(((node,attr,ctx,extras) => () => {
-                                            resolveNodeOrText(attr, ctx, false, extras);
-                                        })(node,attr,this,extras))
+                                            //});
+                                        })
+                                    } else if(attr.template) {
+                                        observe(() => {
+                                            resolveNodeOrText(attr, this,false,node.extras);
+                                        })
                                     }
                                 }
                             }
                         })
                     };
+                nodes.forEach((node) => {
+                    if(node.tagName==="FORM") {
+                        const value = node.getAttribute("value"),
+                            name = getTemplateVariableName(value);
+                        if(name) {
+                            const childnodes = [...nodes].filter((childnode) => node!==childnode && node.contains(childnode));
+                            childnodes.forEach((node) => nodes.delete(node));
+                            const variable = ctx.vars[name] ||= {type: "object", reactive:true, value: Reactor({})};
+                            if(variable.type !== "object" || !variable.reactive || !variable.value || typeof(variable.value)!=="object") {
+                                throw new TypeError(`Can't bind form ${node.getAttribute("id")} to non-object variable ${name}`);
+                            }
+                            processNodes(childnodes,{object:variable.value,rootName:name});
+                        }
+                    }
+                })
                 processNodes(nodes);
                 shadow.normalize();
-                observer ||= createObserver(this, framed);
-                observer.observe(this, {attributeOldValue: true, subtree:true, characterData:true, characterDataOldValue:true});
+                observer ||= createObserver(ctx, framed);
+                observer.observe(ctx, {attributeOldValue: true, subtree:true, characterData:true, characterDataOldValue:true});
                 if(this.hasAttribute("l-unhide")) this.removeAttribute("hidden");
                 //ctx.vars.postEvent.value("connected");
                 this.dispatchEvent(new Event("mounted"));
@@ -1008,23 +1022,21 @@ var {observe} = (() => {
                             if(isArrowFunction(type)) type = type();
                             const variable = this.vars[key] ||= {name: key, type};
                             if(set!==undefined && constant!==undefined) throw new TypeError(`${key} has the constant value ${constant} and can't be set to ${set}`);
-                            if(set!==undefined) variable.value = set;
+                            variable.value = set;
                             if(constant!==undefined) {
-                                if(remote || rest.imported || rest.observed) throw new TypeError(`${key} can't be a constant and also remote, imported or observed`)
+                                if(remote || rest.imported) throw new TypeError(`${key} can't be a constant and also remote or imported`)
                                 variable.constant = true;
                                 variable.value = constant;
                             }
                             if (remote) {
-                                const type = typeof(remote);
-                                if(type==="function") variable.remote = remote(`./${key}`);
-                                else if(this.vars.remote.value && type==="string") variable.remote = this.vars.remote.value(remote);
-                                else throw new TypeError("Attempt to use type 'remote' without importing 'remote' from types.js")
-                                variable.remote.handleRemote({variable, config:variable.remote.config,component:this});
+                                if(typeof(remote)==="function") remote = remote(`./${key}`);
+                                variable.remote = remote;
+                                remote.handleRemote({variable, config:remote.config,component:this});
                             }
                             // todo: handle custom functional types, remote should actually be handled this way
                             Object.entries(rest).forEach(([type,f]) => {
                                 const functionalType = variable[type] = typeof(f)==="function" ? f() : f;
-                                if(functionalType.init) functionalType.init({variable,options,component:this,coerce});
+                                if(functionalType.init) functionalType.init({variable,options,component:this});
                                 if((rest.get!==undefined || rest.set!==undefined) && constant!==undefined) throw new TypeError(`${key} has the constant value ${constant} and can't have a getter or setter`);
                                 variable.set != functionalType.set;
                                 variable.get != functionalType.get;
@@ -1067,7 +1079,7 @@ var {observe} = (() => {
             const html = await (await fetch(url.href)).text(),
                 dom = parser.parseFromString(html, "text/html"),
                 unhide = !!dom.head.querySelector('meta[name="l-unhide"]');
-            for (const childlink of dom.head.querySelectorAll('link[href]')) {
+            for (const childlink of [...dom.head.querySelectorAll('link[href]')]) {
                 childlink.setAttribute("href", new URL(childlink.getAttribute("href"), url.href).href);
                 if (link.hasAttribute("crossorigin")) childlink.setAttribute("crossorigin", link.getAttribute("crossorigin"))
                 if(childlink.getAttribute("href").endsWith(".html") && childlink.getAttribute("rel")==="module") await importLink(childlink, observer);
@@ -1089,11 +1101,10 @@ var {observe} = (() => {
     }
     const importLinks = async () => {
         const observer = createObserver(document.body);
-        for (const link of document.querySelectorAll(`link[href$=".html"][rel=module]`)) {
+        for (const link of [...document.querySelectorAll(`link[href$=".html"][rel=module]`)]) {
             await importLink(link, observer);
         }
     }
-
     const bodyAsComponent = ({as = "x-body", unhide, framed} = {}) => {
         createComponent(as, document.body, {framed});
         const component = document.createElement(as);
@@ -1139,7 +1150,7 @@ var {observe} = (() => {
     let domContentLoadedEvent;
     if (!domContentLoadedEvent) addListener(window, "DOMContentLoaded", (event) => domContentLoadedEvent = event);
     let OBSERVER;
-    const loader = async whenFramed => {
+    const loader = async (whenFramed) => {
         await importLinks();
         const unhide = !!document.querySelector('meta[name="l-unhide"]'),
             isolated = !!document.querySelector('meta[name="l-isolate"]'),
@@ -1240,9 +1251,9 @@ var {observe} = (() => {
                 };
                 const observer = OBSERVER = new MutationObserver(mutationCallback);
                 // iframe = document.getElementById("myframe");
-                for(const iframe of document.body.querySelectorAll("iframe")) {
+                [...document.body.querySelectorAll("iframe")].forEach((iframe) => {
                     observer.observe(iframe, {attributes: true, attributeOldValue: true});
-                }
+                });
             }
         }
     }

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Monitoring With Observers</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Monitoring With Observers</h2>
+
+Lightview supports the observer programming paradigm, a powerful mechanism for responding to changes across one or more
+variables.
+
+To create an observer, wrap a function that references the reactive variables you want to monitor in a call to `observe`.
+
+Any time the value of one of the variables changes, the function will be called.
+
+You can cancel an observer by assigning the return value of `observe` to a variable and calling `cancel()` on that value.
+
+This can be much simpler than setting up event listeners.
+
+*Note*: In this example we only reference one reactive variable, but you can reference as many as you wish. One observer
+can take the place of multiple event listeners. Try pasting this code as the REPL body.
+
+```javascript
+${command||""}<br>
+${x}:${y}
+```
+And, paste this as the REPL script:
+
+```javascript
+currentComponent.mount = function() {
+    this.variables({x:"number",y:"number",command:"string"},{reactive});
+
+    x = 0;
+    y = 6;
+
+    let previousx, previousy;
+    let t1, t2;
+    const observer = observe(() => {
+        if(x!==y) {
+            if(x!==previousx) {
+                previousx = x;
+                t1 = setTimeout(() => y--,1000);
+            }
+            if(y!==previousy) {
+                previousy = y;
+                t2 = setTimeout(() => x++,1000);
+            }
+        } else {
+            command = "stop!";
+            clearTimeout(t1);
+            clearTimeout(t2);
+            observer.cancel();
+        }
+    });
+}
+```
+
+
+</div>
+    <button class="nav-previous"><a href="./6-conventional-javascript.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./8-event-listeners.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    ${command||""}
+</l-body>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({count:"number"},{reactive,set:0});
+        this.variables({command:"string"},{reactive});
+
+        const commands = ["On your marks ...","Get set ...","Go!"];
+        observe(() => {
+            if(count < commands.length) {
+                command  = commands[count];
+                setTimeout(()=>count++,3000)
+            }
+        });
+    }
+</script>
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

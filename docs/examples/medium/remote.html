@@ -1,0 +1,60 @@
+<html>
+<head>
+  <title>Lightview:Examples:Medium:Remote</title>
+  <!--
+      for convenience, import the chart component from the Lightview component library
+      alias it to r-chart rather than use the default l-chart
+      we could use any gauge component that exposes methods to update its view
+  -->
+  <link href="../../components/chart.html" rel="module" crossorigin="use-credentials" as="r-chart">
+  <!--
+      load the lightview library, about 7K
+      use the body of this file to create a custom element to replace itself
+  -->
+  <script src="../../../lightview.js?as=x-body"></script>
+</head>
+<body>
+<!--
+  layout the dashboard using the chart component r-chart
+-->
+<div style="width:100%;text-align:center">
+  <!--
+      set the initial value 0 for all components in a relaxed JSON5 configuration data block
+      add the attributes hidden and l-unhide to eliminate flicker and display of Loading ....
+  -->
+  <r-chart id="dashboard" style="display:inline-block" type="Gauge" title="Server Status">
+    [
+    ['Label', 'Value'], // gauge will always take two columns, Label and Value
+    ['Memory', 0],
+    ['CPU', 0],
+    ['Network', 0]
+    ]
+  </r-chart>
+</div>
+<script type="lightview/module">
+    // use local, normal variables for as much as possible
+    const {remote} = await import("../../types.js"), // load the functional type 'remote`
+      sensorIndex = { // map sensor names to indexes in the dashboard data
+        memory:0,
+        cpu:1,
+        network:2
+      },
+      dashboard = document.body.getElementById("dashboard"),
+      path = "https://lightview.dev/sensors/"; // replace base path for your own implementation
+    // create remote reactive variables for sensors with differing refresh rates (ttl in milliseconds)
+    self.variables({memory:"number"},{remote:remote({ttl:5000,path})});
+    self.variables({cpu:"number"},{remote:remote({ttl:2500,path})});
+    self.variables({network:"number"},{remote:remote({ttl:1500,path})});
+    dashboard.addEventListener("connected",() => {
+       dashboard.setOptions({ // when dashboard component has finished initializing, set more options
+          redFrom: 90, redTo: 100,
+          yellowFrom:75, yellowTo: 90,
+          minorTicks: 5});
+      addEventListener("change",({variableName,value}) => { // execute the magic with a localized eventListener
+         const index = sensorIndex[variableName];
+         dashboard.setValue(index, 1, value);
+      });
+    });
+</script>
+</body>
+</html>

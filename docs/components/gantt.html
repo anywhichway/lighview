@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lightview:Component:Gantt</title>
+    <script src="../javascript/json5.min.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        const {chart} = await import(new URL("./components.js", this.componentBaseURI).href),
+            {duration} = await import(new URL("../javascript/types.js", this.componentBaseURI).href);
+        chart(self, {
+            packages: ["gantt"],
+            columns: [
+                {label: "Task ID", type: "string"},
+                {label: "Task Name", type: "string"},
+                {label: "Start Date", type: "date"},
+                {label: "End Date", type: "date"},
+                {label: "Duration", type: "number"},
+                {label: "% Complete", type: "number"},
+                {label: "Dependencies", type: "string"}
+            ],
+            type: "Gantt",
+            rowTransform(row, i) {
+                return row.map((item, index) => {
+                    if (item && (index === 2 || index === 3)) {
+                        const date = new Date(item);
+                        if (!date || typeof (date) !== "object" || !(date instanceof Date)) {
+                            throw new TypeError(`row:${i} col:${index} is not a date`);
+                        }
+                        return date;
+                    }
+                    if (item && index === 4) return duration.parse(item);
+                    return item;
+                })
+            }
+        });
+    }
+</script>
+</body>
+</html>

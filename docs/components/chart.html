@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Component:Chart</title>
+    <script src="../javascript/json5.min.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        const {chart} = await import(new URL("./components.js", this.componentBaseURI).href);
+        chart(self);
+    }
+</script>
+</body>
+</html>

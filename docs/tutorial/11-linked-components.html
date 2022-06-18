@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Linked Components</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Linked Components</h2>
+
+You can link to components using the `link` tag.
+
+When you do this, you do not need to include a script with the id "lightview" unless you are also creating a local
+component or using `as=x-body`.
+
+So long as the file name for the linked component includes a hyphen, it will be used as the tag name. If not, an `l-`
+will be prefixed.
+
+You can alias the filename to your own tagname to avoid collisions with other components by using an `as` attribute on
+the anchor. Try cutting and pasting this to the `head` and updating the `body` accordingly.
+
+```html
+<link href="./tutorial/my-component.html" rel="module" as="l-component">
+```
+
+If you are loading the component across origins, you must also include the attribute `crossorigin="use-credentials"`.
+Although, it is up to the responding domain to actually require credentials or not.
+
+*Caution*: You MUST absolutely trust the origin from which you are loading a component. Components can walk and modify
+the DOM.
+
+Below is the content of the `my-component.html` file. The script containing `src="../javascript/lightview.js?as=x-body"`
+in the head is un-necessary and is ignored when linking the component. However, including it makes the component unit
+testable, i.e. the file can be loaded directly in a browser, it does not need to be imported as a component by
+another file.
+
+<l-repl contentbackground="#f3f3f3" src="./my-component.html" hidetabs maintainbody>
+    <div slot="headhtml" readonly></div>
+    <div slot="bodyhtml" readonly></div>
+</l-repl>
+
+
+</div>
+    <button class="nav-previous"><a href="./10-template-components.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./12-imported-components.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+<template slot="src">
+<l-head>
+    <link href="../tutorial/my-component.html" rel="module">
+    <script src="../javascript/lightview.js"></script>
+</l-head>
+<l-body>
+    <my-component></my-component>
+</l-body>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

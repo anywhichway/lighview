@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Extended Functional Type:Remote</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript./lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Extended Functional Type - Remote</h2>
+
+In addition to `constant`, `exported`, `imported`, and `reactive`, Lightview supports the functional types `remote`,
+`shared`, and `observed`.
+
+- `remote` automatically gets a value from a URL
+- `shared` automatically synchronizes a value across all instances of the same component
+- `observed` in like import, except it changes the variable value every time its corresponding attribute changes on the component
+
+These types must be loaded from the file `types.js` as shown in the example REPL.
+
+If you want to import all of them in an efficient manner, do this:
+
+```javascript
+const {remote, shared, observed} = await import("../types.js");
+this.variables(
+    { remote: "function"},
+    { constant: remote }
+);
+this.variables(
+    { remote: "function"},
+    { constant: shared }
+);
+this.variables(
+    { remote: "function"},
+    { constant: observed }
+);
+```
+
+For the demo REPL, the file located at `./tutorial/remote-value.json` has the contents `{"name":"joe","age":27}`. Try replacing
+`./tutorial/remote-value.json` with `http://api.open-notify.org/astros.json` to see how many people are in space right now.
+
+You may have noted that although `remote` is imported as a function, it is not used as such. For details on how to use
+`remote` with a configuration object to support TTL based auto-refresh, automatically sending changed values to the server
+and custom get/patch see the [API documentation](../api.html#remote).
+
+The `observed` and `shared` types are covered on the next pages.
+
+</div>
+    <button class="nav-previous"><a href="./4-extended-data-types.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./5.1-extended-functional-types.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    Result: ${result}
+</l-body>
+<script id="lightview">
+    currentComponent.mount = async function() {
+        this.variables(
+            { remote: "function"},
+            { constant: (await import("../javascript/types.js")).remote }
+        );
+        this.variables(
+            {
+                result:"object"
+            },
+            {
+                reactive,
+                remote:"./remote-value.json"
+            }
+        );
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

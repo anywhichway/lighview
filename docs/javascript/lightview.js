@@ -1250,7 +1250,8 @@ var {observe} = (() => {
         // loads for framed content
         addListener(document, "DOMContentLoaded", (event) => loader(callback));
     }
-    Lightview.whenFramed = whenFramed;
+    Object.defineProperty(Lightview,"whenFramed",{value:whenFramed});
+    //Lightview.whenFramed = whenFramed;
     Lightview.loader = loader;
 //debugger;
     if (window.location === window.parent.location || !(window.parent instanceof Window) || window.parent !== window) {

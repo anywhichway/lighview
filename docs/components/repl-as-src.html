@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</head>
+<body>
+    <div class="message">${message}</div>
+    <script id="lightview">
+        currentComponent.mount = function() {
+            this.variables({message:"string"},{set:"Hello world!"});
+        }
+    </script>
+    <style>
+        .message { font-size: large }
+    </style>
+</body>
+</html>

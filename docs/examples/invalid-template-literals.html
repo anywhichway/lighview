@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Invalid Template Literals</title>
+    <script src="../../lightview.js?as=x-body"></script>
+</head>
+<body>
+<p>
+    <button l-on:click="${bump}">Click count:${count}</button>
+</p>
+<div style="margin:20px">
+    <p>
+        ${"<h1>"+(test++)+"</h1>"}
+    </p>
+    <p>
+        ${(while (test)<10 { test++}; test)}
+    </p>
+    <p>
+        ${(() =>test)()}
+    </p>
+    <p>
+        ${(() = >test)()}
+    </p>
+    <p>
+        ${function(){return \${test}})()}
+    </p>
+</div>
+
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        self.variables({count: "number", test: "number"}, {reactive, set: 0});
+        self.bump = () => count++;
+    }
+</script>
+
+<style>
+    button {
+        margin: 20px;
+        background: gray
+    }
+</style>
+</body>
+
+</html>

@@ -592,8 +592,7 @@ const shared = () => {
 
 const observed = () => {
     return {
-        init({variable, component}) {
-            if(variable.observed) return;
+        init({variable, component,coerce}) {
             const name = variable.name;
             variable.value = component.hasAttribute(name) ? coerce(component.getAttribute(name), variable.type) : variable.value;
             variable.observed = true;

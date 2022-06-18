@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Introduction to Variables</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../slidein.html" rel="module">
+    <link href="../components/repl.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+## Introduction to Variables
+
+*Note*: In this REPL and most other REPLs in the tutorial the Lightview script is placed in a separate section. This is to simplify
+editing. Behind the scenes, the script is included in the body tag.
+
+Much of the power of Lightview comes from variables coupled with JavaScript string literal notation embedded in HTML.
+Try adding some text or HTML before or after `${message}`.
+
+Variables declared as the functional type `reactive` automatically update the DOM nodes that reference them.
+Try copy/paste replacing the code with:
+
+```javascript
+currentComponent.mount = function() {
+    this.variables({message:"string"},{reactive});
+    message = "Hello world!";
+    setTimeout(function() {
+        message = "Goodbye world ...";
+    },2000);
+}
+```
+
+You can also use the functional type `constant`. Try replacing the code with:
+
+```javascript
+currentComponent.mount = function() {
+    this.variables({message:"string"},{constant:"Hello world"});
+    message = "Goodbye world ...";
+}
+```
+
+Note how the variable `message` simply does not get replaced. You can configure Lightview to render errors. Try this:
+
+```javascript
+Lightview.renderErrors = true;
+currentComponent.mount = function() {
+    this.variables({message:"string"},{constant:"Hello world"});
+    message = "Goodbye world ...";
+}
+```
+
+See the API documentation [Lightview.renderErrors](../api.html#renderErrors).
+
+Finally, you can set default values using `set`. Try replacing the code with:
+
+```javascript
+currentComponent.mount = function() {
+    this.variables({message:"string"},{reactive,set:"Hello world!"});
+    setTimeout(function() {
+        message = "Goodbye world ...";
+    },2000);
+}
+```
+
+See the API documentation on [variables](../api.html#variables) and [reactive](../api.html#reactive).
+
+See the Medium article for an exploration of <a href="https://medium.com/@anywhichway/javascript-and-functional-types-89f2ae55747b" target="_tab">functional types</a>.
+    </div>
+    <button class="nav-previous"><a href="./0-getting-started.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./2-imported-and-exported-variables.html" target="content">Next</a></button>
+</div>
+<div class="repl">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned path="$location">
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+<script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+${message}
+</l-body>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({message:"string"},{reactive});
+        message = "Hello world!"
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+   processMarkdown();
+</script>
+</body>
+</html>

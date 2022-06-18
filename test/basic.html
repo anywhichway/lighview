@@ -5,6 +5,7 @@
     <title>Basic</title>
     <template id="x-test" name="joe" open="true" count=1 children='["mary"]' l-on:click="${bump}">
 
+        <input id="iuntyped" value="${iuntyped}">
         <input id="idatetime" type="datetime" value="${idatetime}">
 
         <span id="children">${children}</span>
@@ -18,7 +19,7 @@
         <span id="age">${age}</span>
         <span id="hamburger">${hamburger}</span>
 
-        <input id="iuntyped" value="${iuntyped}">
+
         <input id="itext" type="text" value="${itext}">
         <input id="itel" type="tel" value="${itel}">
         <input id="iemail" type="email" value="${iemail}">
@@ -35,8 +36,16 @@
         <input id="icheckbox" type="checkbox" value="${icheckbox}">
     </template>
     <script>
-        document.getElementById("x-test").mount = (self) => {
+        document.getElementById("x-test").mount = async (self) => {
             // debugger;
+            self.variables(
+                {
+                    shared:"function"
+                },
+                {
+                    constant: (await import("../types.js")).shared
+                }
+            );
             self.variables({name: "string", open: "boolean", count: "number", children: Array}, {imported, reactive});
             self.variables({color: "string", checked: "boolean", age: "number", hamburger: Array}, {
                 exported,
@@ -52,7 +61,8 @@
             counter = 0;
             myshare = 1;
 
-            self.addEventListener("connected", ({target}) => {
+            self.addEventListener("mounted", ({target}) => {
+                debugger;
                 iuntyped = "test";
                 itext = "test";
                 itel = "test";
@@ -80,8 +90,9 @@
             });
         }
     </script>
-    <script src="../lightview2.js"></script>
+    <script src="../lightview.js"></script>
     <script>
+        Lightview.createInputVariables = true;
         Lightview.createComponent("x-test",document.getElementById("x-test"));
     </script>
 </head>

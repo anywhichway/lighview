@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Loop Directives</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Loop Directives</h2>
+
+Lightview has a single looping directive, `l-for`, that can be configured to handle objects and arrays and loop over keys, values, or entries
+with default variable names or variable names you provide.
+
+The iterator directive takes the form `l-for:?accessor:?itemVariable:?indexVariable:?arrayVariable="${data}"`.
+
+The default iterator accessor is `each`. You can also use `entries`, `keys`, and `values`.
+
+The default iteration variables are `item`, `index`, and `array`.
+
+Try pasting this code into the &lt;body&gt;:
+
+```html
+<form value="${person}">
+    <div l-for:keys:key="${person}">
+    <p></p><label for="${key}">${key}:</label><input id="${key}" value="${person[key]}"></p>
+    </div>
+    <input type="submit">
+</form>
+```
+
+Try pasting this code into the &lt;body&gt;:
+
+```html
+<div l-for:each:child:i:children="${children}">
+    <p>${child} has index ${i} in ${JSON.stringify(children)}</p>
+</div>
+```
+
+    </div>
+    <button class="nav-previous"><a href="./16-if-directive.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./18-sanitizing-and-escaping-input.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    <ul l-for:entries="${person}">
+        <li>${item[0]}:${item[1]}</li>
+    </ul>
+    <ul l-for="${children}">
+        <li>${item}</li>
+    </ul>
+</l-body>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({person:"object"},{set:{email:"joe@somewhere.com",phone:"555-555-5555"}});
+        this.variables({children:Array},{set:["mary","john"]});
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

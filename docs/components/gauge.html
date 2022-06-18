@@ -1,0 +1,20 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Component:Gauge</title>
+    <script src="../javascript/json5.min.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        const {chart} = await import(new URL("./components.js", this.componentBaseURI).href);
+        chart(self, {
+            packages: ["corechart", "gauge"],
+            columns: [{label: "Label", type: "string"}, {label: "Value", type: "number"}],
+            type: "Gauge"
+        });
+    }
+</script>
+</body>
+</html>

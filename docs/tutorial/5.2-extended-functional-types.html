@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Extended Functional Type:Observed</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Extended Functional Type - Observed</h2>
+
+Unlike `imported` variables which only get the value of an attribute when the component is created, `observed` attributes
+update the associated variable every time the attribute changes.
+
+Clicking on the `Change Attribute` button sets a new value for the attribute "name". Lightview detects this and updates the
+variable `name`. Since `name` is also `reactive`, the HTML nodes referencing it are also updated.
+
+    </div>
+    <button class="nav-previous"><a href="./5.1-extended-functional-types.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./6-conventional-javascript.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body name="joe">
+    Name: ${name}
+    <button l-on:click="${changeAttribute}">Change Attribute</button>
+</l-body>
+<script id="lightview">
+    currentComponent.mount = async function() {
+        this.variables(
+            { observed: "function"},
+            { constant: (await import("../javascript/types.js")).observed }
+        );
+        this.variables(
+            {
+                name:"string"
+            },
+            {
+                reactive,
+                observed
+            }
+        );
+        this.changeAttribute = () => {
+            this.setAttribute("name","mary" + Math.round(Math.random()*10))
+        }
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

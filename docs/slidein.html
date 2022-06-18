@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Component:Slidein</title>
+    <script src="../lightview.js?as=x-body"></script>
+</head>
+<body l-on:click="${toggleState}">
+<div id="content" class="slidein ${state}" hidden>
+    <div l-if="${state==='closed'}" style="font-size: x-small;font-weight: bold; float:left">&nbsp;&gt;</div>
+    <div l-if="${state==='open'}" style="font-size: x-small;font-weight: bold; float:right; padding-right: 3px">X</div>
+<slot>You must provide inner content for slidein</slot>
+</div>
+
+<style>
+    .slidein {
+        overflow: hidden;
+        padding-right: 5px;
+        position: absolute;
+        z-index: 1000;
+        width: 100%;
+    }
+</style>
+
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        this.variables({toggleState:"function"});
+        this.variables({state:"string"},{reactive,imported});
+        this.variables({src:"string"},{imported});
+
+        if(src) {
+            const response = await fetch(new URL(src,window.location.href.replace("blob:","")));
+                dom = new DOMParser().parseFromString(await response.text(),"text/html");
+            this.appendChild(dom.body.firstElementChild);
+        }
+        this.getElementById("content").removeAttribute("hidden");
+
+        state ||= "closed";
+
+        toggleState = () => {
+            console.log(state);
+            if(state==="closed") state = "open";
+            else state = "closed";
+            if(state==="open") this.style.width = getComputedStyle(this).maxWidth;
+            else this.style.width = getComputedStyle(this).minWidth;
+        };
+    }
+</script>
+
+</body>
+</html>

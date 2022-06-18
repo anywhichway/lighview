@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:API</title>
+    <script src="./javascript/marked.min.js"></script>
+    <script src="./javascript/highlightjs.min.js"></script>
+    <script src="./javascript/utils.js"></script>
+</head>
+<body>
+<div class="markdown">
+
+## API
+
+Lightview has two APIs based on the context in which it is used:
+
+1. Public API
+
+    The public API is the one used in a normal JavaScript context. It is relatively limited in scope.
+
+2. Contextual API
+
+    The contextual API is only available from within scripts having an `id="lightview"`.
+
+### Public API
+
+A `Lightview` object is available after you load the file `lightview.js` using the script &lt;script src="./lightview.js"></script&gt;
+
+The path to `lightview.js` may vary based on where you install Lightview.
+
+- `HTMLCustomElement Lightview.bodyAsComponent([{as = "x-body", unhide:boolean, framed:boolean}])`
+
+    - This function is rarely called directly and treats the body of an HTML document as a component. If it is called
+    directly, the place to do so is in a `DOMContentLoaded` event handler.
+    - A shorthand and most common way of using this is to just pass the query string ``?as=x-body` to the Lightview loading script in the head or close to
+    the top of the body in your document.
+    - Note, once a body is turned into a component, its contents are in a shadow DOM, so using `document.getElementById` will not work. Instead, use
+    `document.body.getElementById`. All components implement `getElementById`.
+    - The use of this method or the query string approach is ignored when a component is loaded as a subcomponet. Hence, you can use it to support
+    the creation of unit testable components.
+
+    See the tutorial section on [Intro To Components](./tutorial/9-intro-to-components.html).
+
+<a id="createComponent"></a>
+- `function Lightview.createComponent(tagName:string,template:HTMLElement)`
+
+    Creates a component and registers it as a custom element with the provided `tagName` based on the inner HTML
+    of the HTMLElement pointed to by `template`. The `template` is typically a
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement" target="_tab">HTMLTemplateElement</a>,
+    but it can be almost any HTMLElement like a `<div>`. It is usually provided by using `document.getElementById`.
+
+    See the tutorial section on [Template Components](./tutorial/10-template-components.html).
+
+<a id="createInputVariables"></a>
+- `Lightview.createInputVariables:boolean`
+
+    A flag that can be set to `true` prior to defining and processing a component `mount` function. When `true`, any HTML input
+    elements with `value` attributes that resolve to a atomic string template literals automatically result in the creation
+    of reactive variables with a type consistent with the input elements.
+
+    See the tutorial section on [Automatic Variable Creation](./tutorial/14-automatic-variable-creation.html) or its predecessor
+    [Input Binding](./tutorial/input-binding.html).
+
+<a id="escapeHTML"></a>
+- `string Lightview.escapeHTML(possibleHTML:string)`
+
+    There are some security issues related to the use of template literals and un-sanitized user input as values for variables.
+
+    Wherever template resolution is completed the target node is an HTMLElement or Attr, it takes the result of the template
+    interpolation and escapes all HTML characters before inserting the value into the DOM. If the target node is a TextNode,
+    no escaping is conducted because it is not needed. The DOM will not try to treat the content of a text node like it is HTML, even if it looks like HTML.
+    Surprisingly, most of the time, the target will be a TextNode.
+
+    The simplest way to escape HTML is to set it into a textarea and then retrieve it again. This is the mechanism employed by Lightview.
+
+    ```javascript
+    const escaper = document.createElement('textarea');
+    const escapeHTML = html => {
+        escaper.textContent = html;
+        return escaper.innerHTML;
+    }
+    Lightview.escapeHTML = escapeHTML;
+    ```
+
+    You can override this mechanism by assigning a new value to `Lightview.escapeHTML`, perhaps based on <a href="https://github.com/cure53/DOMPurify" target="_tab">DOMPurify</a>
+    or the new browser  <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API" target="_tab">Sanitizer API</a> when it becomes widely available
+
+    See the tutorial section [Sanitizing and Escaping HTML](./tutorial/18-sanitizing-and-escaping-input.html).
+
+<a id="renderErrors"></a>
+- `Lightview.renderErrors:boolean`
+
+    A flag that can be set to `true` prior to defining and processing a component `mount` function. When `true`, any errors that
+    result from string literal template resolution in HTML are rendered into the HTML. Otherwise, the errors are swallowed and the string
+    literal template remains in the HTML.
+
+    See the example code about half-way down tutorial section [Introduction to Variables](./tutorial/1-intro-to-variables.html).
+
+    - `Lightview.whenFramed:function`
+
+<a id="sanitizeTemplate"></a>
+- `string Lightview.sanitizeTemplate(template:string)`
+
+    There are some security issues related to the use of template literals to substitute values into HTML. Lightview has a small blunt mechanism for
+    providing protection. It "sanitizes" templates before attempting to resolve them by making suspicious code unparseable. The result is that the template will simply
+    not be replaced in the component. If resolution is successful and the target node is an HTMLElement or Attr, it takes the result of the template
+    interpolation and escapes all HTML characters before inserting the value into the DOM (see Lightview.escapeHTML). If the target node is a TextNode,
+    no escaping is conducted because it is not needed. The DOM will not try to treat the content of a text node like it is HTML, even if it looks like HTML.
+    Surprisingly, most of the time, the target will be a TextNode. Here is the code:
+
+    ```javascript
+    const templateSanitizer = (string) => {
+        return string.replace(/function\s+/g,"")
+            .replace(/function\(/g,"")
+            .replace(/=\s*>/g,"")
+            .replace(/(while|do|for|alert)\s*\(/g,"")
+            .replace(/console\.[a-zA-Z$]+\s*\(/g,"");
+        };
+    Lightview.sanitizeTemplate = templateSanitizer;
+    ```
+
+    If you need dynamic arrow function closures in your templates, you can replace Lightview.sanitizeTemplate with your own code at the top of
+    your component file:
+
+    ```javascript
+        Lightview.sanitizeTemplate =  (string) => {
+            return string.replace(/function\s+/g,"")
+                .replace(/function\(/g,"")
+                .replace(/(while|do|for|alert)\s*\(/g,"")
+                .replace(/console\.[a-zA-Z$]+\s*\(/g,"");
+        }
+    ```
+
+    You can use something like <a href="https://github.com/cure53/DOMPurify" target="_tab">DOMPurify</a> or the new browser
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API" target="_tab">Sanitizer API</a> when it becomes
+    widely available in order to implement and provide an alternate sanitizer if you wish. Just assign it to `Lightview.sanitizeTemplate`.
+
+    See the tutorial section [Sanitizing and Escaping HTML](./tutorial/18-sanitizing-and-escaping-input.html).
+
+<a id="whenFramed"></a>
+
+- `void Lightview.whenFramed(callback:function [, {isolated:boolean}])`
+
+    - Invokes `callback` when a component file detects it is being loaded in an iframe.
+    - If `isolated` is set to true, then there will be no communication with the parent window. Otherwise, basic message
+    handling is automatically implemented in the child. The parent document will still need to implement handling. Basic
+    child message handling includes notification of component level attribute changes and content area scroll/display size.
+
+
+### Contextual API
+
+Once again, the contextual API of Lightview is only available from within scripts having an `id="lightview"`.
+
+The API consists of:
+
+- contextual variables, e.g. `currentComponent` and `self`
+- built-in properties and methods on components
+- global constants that effectively become new reserved words, e.g. `reactive`
+- capabilities that are imported from the file `types.js`
+
+
+### Contextual Variables
+
+- `currentComponent:HTMLElement`
+
+- `self`
+
+### Built-in Properties and Methods on Components
+
+- `component.addEventListener(eventName:string,callback:function)`
+
+    Adds the callback to be invoked when the `eventName` occurs.
+
+    This is actually just the standard `HTMLElement.addEventLister`.
+
+    Valid eventNames beyond those supported natively include:
+
+    - "adopted" which will be invoked when a component is adopted by a document with the callback as callback({type:"adopted",target:component}).
+    - "connected" which will be invoked when a component is added to a document DOM with the callback as callback({type:"connected",target:component}).
+    - "mounted" which will be invoked when the <a href="#mount">mount</a> function described below has executed.
+    In order to prevent blocking, a number of Lightview component initialization functions are asynchronous. As a result, when a component
+    is connected by the DOM, there may still be initialization work in flight. Once the Lightview "mounted"" event has fired, you can be sure
+    all initialization work is complete so long as any custom asychnronous code inside of `mount` has been awaited.
+
+    If you encouter errors that say custom methods on your components are not available to other components or external scripts,
+    then try wrapping the code that accesses these methods in a "mounted" event listener.
+
+    - "disconnected" which will be invoked when a component is removed from a DOM with the callback as callback({type:"disconnected",target:component}).
+
+<a id="variable"></a>
+#### Methods Handling Variables
+- `void this.variables({variableName:dataType[,...]},{functionalType:boolean|string|object,...[,...}})`
+
+    In addition to `var`, `let`, and `const`, Lightview supports the creation of variables using the method `variables`
+    available on all components implemented using Lightview. These variables can have both a data types and multiple
+    functional types. A "functional type" is one that assigns default behavior to a variable. See the sections
+    Global Constants and Imported Capabilities for more detail.
+
+    The `dataType` can be the string name of one of the primitive data types in JavaScript plus the value "any". It can
+    also be a reference to a constructor (e.g. Array) or an extended data type imported from "types.js".
+    See [Imported Capabilities](#imported-capabilities) below.
+
+    A `functionalType` can be one of the [Global Constants](#global-constants) defined below, or an extended functional type
+    imported from "types.js". See [Imported Capabilities](#imported-capabilities) below. A variable can have more than one functional type.
+
+    See the tutorial starting with [Intro To Variables](./tutorial/1-intro-to-variables.html).
+
+### Component Variable Access
+
+    You should be careful not to overload and shadow these functions by redefining them on your component.
+
+- `Array this.getVariable()`
+
+    Returns a copy of the internal structure of a variable or `undefined`. See `this.variables` below.
+
+- `Array this.getVariableNames()`
+
+    Returns an array of names of the currently defined variables for a component.
+
+- `any this.getVariableValue(variableName:string)`
+
+    Gets the current value of variableName. Returns undefined if the variable does not exist.
+
+- `boolean this.setVariableValue(variableName:string, value:any[, {coerceTo:string|function}])`
+
+    Sets a value for a `variableName`. Returns `true` if the variable already existed and `false` if not.
+
+    If the variable already existed, the existing type is used and `coerceTo` is ignored.
+
+    If the variable is created, the type is infered from the `value` or coerced value if `coerceTo` is provided.
+
+- `object this.variables({[variableName]:variableType,...}[,{functionalType:any,...]})`
+
+    Used to declare variables.
+
+    Returns an object, the keys of which are variable names with the values being copies of the internal structure of the variable, e.g.
+
+    ```javascript
+    this.variables({v1:"string"},{imported,shared});
+    /* returns
+    {
+    v1: {name: "v1", type: "string", imported:true, shared:true}
+    }
+    */
+    self.variables({v2:"number"},{exported,reactive});
+    /* returns
+    {
+    v2: {name: "v2", value:2, type: "number", exported:true, reactive:true}
+    }
+    */
+    ```
+
+#### Other Component Methods
+
+<a id="mount"></a>
+- `void mount(event:Event)`
+
+    A method implemented by the application developer to provide the variable creation and primary logic for the component
+    in the context of a script with `id="lightview"`. This is the methos that calls the above documented component methods and
+    uses the below documented functions and constants.
+
+    If the method is implemented as a regular function, `this` will be bound to the component when it executes.
+
+    If the method is implemented as an arrow function, the property `self` will be available when the function executes.
+
+Components are HTML elements with a `shadowRoot` and have the standard `HTMLElement` properties and capability, e.g. getQuerySelector.
+They also implement `getElementById` (which is normally only on a document). CHECK THIS, does shado Root provie? If sho, delete capabilty
+
+### Lightview Script Capability
+
+A script with `id="lightview"` contains the following functions, variables, constants, and importable capability.
+
+#### Functions
+
+- `void addEventListener(evantName:string,callback:function)`
+
+    Like ??? in service workers, `addEventListener` is available directly in the top level of a script, although it will
+    always be invoked in the context of a `mount` function.
+
+    There is only one valid `eventName`, "change". The `callback` will be invoked every time a variable value changes with
+    an event of the form `{variableName:string,previousValue:any,value:any}`.
+
+#### Variables
+
+- `currentComponent:HTMLElement`
+
+    The currently processing component. In some contexts it is necessary to assign the value `document.body` like this:
+
+    ```javascript
+    (currentComponent||=document.body).mount = function() { ... }
+    ```
+
+    Doing the above will always be safe. It is necessary when `ligthview.js?as=x-body` is loaded in the head section of a file
+    rather than as the first script in the body section.
+
+#### Constants
+
+<a id="exported"></a>
+- `const exported:boolean = true`
+
+    A functional type that automatically promotes the variable value to a component attribute of the same name when the value changes.
+
+    See the tutorial section [Imported and Exported Variables](./tutorial/2-imported-and-exported-variables.html).
+
+
+    <a id="imported"></a>
+- `const imported:boolean = true`
+
+    A functional type that automatically imports the initial value for a variable from a component attribute by the same name.
+
+    See the tutorial section [Imported and Exported Variables](./tutorial/2-imported-and-exported-variables.html).
+
+
+    <a id="reactive"></a>
+- `const reactive:boolean = true`
+
+    A functional type that automatically updates string template literals in HTML that reference variables of its type. The
+    template literals can be atomic references or computations, e.g. `${myVar}` or `${myVar + 1}`.
+
+    See the tutorial section [Intro to Variables](./tutorial/1-intro-to-variables.html).
+
+#### Imported Capabilities
+
+Imported capabilities take the form of functions that provide extended data types or extended functional types. The capabilities
+must be imported from the file "types.js".
+
+Extended data types consistently differ from standard data types in 5 ways.
+
+1. They are declared using a symbolic or functional form rather than quoted for, e.g. `{myVar:number}` or `{myVarv:number({min:0})` vs {myVar:"number"}`
+1. They do not automatically coerce values to their type. Coercion must be enabled using `{myVar:number({min:0,coerce:true})`
+1. They support default values if there is an attempt to assign `null` or `undefined`.
+1. They support required values. Although they may be in an initial state of `null` or `undefined`, they can't be set to `null` or `undefined` later.
+1. They have a default whenInvalid parameter which throws an error when an attempt to set the variable to an invalid value is made.
+A custom function can be passed in that swallows the error and returns the existing value for the variable value, or undefined, or some other value. The
+function is passed a copy of the internal structure of the variable, for example:
+
+    ```javascript
+    const whenInvalid = (variable) => {
+        return variable.value;
+    }
+    self.variables({myVar:number({min:0,whenInvalid}));
+    ```
+    you could even go ahead and make the assignment but log a warning:
+
+    ```javascript
+    const whenInvalid = (variable,invalidValue) => {
+        console.warn(`Assigning ${variable.name}:${variable.type.name||variable.type} invalid value ${invalidValue});
+        return newValue;
+    }
+    ```
+<a id="any"></a>
+- `object any({required?:boolean,whenInvalid?:function,default?:any})`
+
+    The extended data type `any` provides no more capability than "any", other than that common to
+    all extended data types: strict type validation,
+    optional `whenInvalid` handling, being required or not, and a default value.
+
+<a id="array"></a>
+- `object array({coerce?:boolean,required?:boolean,whenInvalid?:function,minlength?:number,maxlength?:number,default?:Array})`
+
+    An extended data type for the base data type `Array`.
+
+    - `minlength` defaults to `0`
+    - `maxlength` defaults to `Infinity`
+
+<a id="boolean"></a>
+- `object boolean({coerce?:boolean,required?:boolean,whenInvalid?:function,default?:boolean})`
+
+    An extended data type that provides just common extended data type capability.
+
+<a id="duration"></a>
+- `object duration:function`
+
+    An extended data type to represent time duration, e.g. `1m` a minute or `1M` a month. Variables of this type will
+    automatically coerce to milliseconds when used in math formulas, e.g.
+
+    ```javascript
+    this.variables({d:duration});
+    d = "1m 2h 3m";
+    const future = new Date(Date.now() + d);
+    ```
+
+    Note, you can't use just any string like it is a duration, `Date.now() + "1m 2h 3m"` will not work because the
+    JavaScript engine just thinks "1m 2h 3m" is a string.
+
+    Durations are always a positive of negative number followed by a string suffix denoting the time increment:
+
+    - ms = milliseconds
+    - s = seconds
+    - m = minutes
+    - h = hours
+    - d = days
+    - w = weeks
+    - M = months
+    - q = quarters
+    - y = years
+
+<a id="number"></a>
+- `object number({coerce?:boolean,required?:boolean,whenInvalid?:function,min?:number,max?:number,step?:number,allowNaN?:boolean,default?:number})`
+
+    An extended data type.
+
+    - `min` defaults to `-Infinity`
+    - `max` defaults to `Infinity`
+    - `step` defaults to `1`
+    - `allowNaN` defaults to `true`
+
+<a id="object"></a>
+- `object object({coerce?:boolean,required?:boolean,whenInvalid?:function,default?:object})`
+
+    An extended data type that provides just common extended data type capability.
+
+<a id="observed"></a>
+- `object observed:function`
+
+    An extended functional type that automatically updates the value for a variable based on a component attribute by the same name every
+    time the component attribute changes.
+
+    Although provided as a function to be consistent with other extended types, there is no need to call the function
+    since it takes no configuration data.
+
+<a id="remote"></a>
+- `object remote(source:string|object)`
+
+    An extended functional type that can GET and PATCH variable values automatically.
+
+    Variables of functional type `remote` are automatically `reactive` and will attempt to put changes back to the URL from
+    which their current state is retrieved.
+
+    If `source` is a string it should be an absolute or relative path to access the variable on a server.
+
+    If `source` is an `object` it should have the surface:
+
+    ```javascript
+    {
+        path:string,
+        get:function,
+        patch:function,
+        put:function,
+        ttl:number, // milliseconds
+    }
+    ```
+
+    The easiest way to configure remote variables is to provide the absolute or relative unique URL to access the variable value, e.g.
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables(
+        {sensor1:object}, {remote:"./sensors/sensor1"}
+    );
+    await sensor1;
+    ```
+
+    which is shorthand for
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables(
+        {sensor1:object}, {remote:remote("./sensors/sensor1"})
+    );
+    await sensor1;
+    ```
+
+    Note: You MAY need to await the remote variable after it is declared. Future use, e.g. in template literals, will NEVER need to be awaited.
+
+    If you do not provide a value or call `remote` with a configuration object during your variable declaration, the assumed path to the variable
+    will be the current file path plus the variable name, e.g.
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables({sensor1:object}, {remote});
+    ```
+
+    is the same as
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables({sensor1:object}, {remote("./sensor1")});
+    ```
+
+    If you use remote with a path that is terminated by a slash, then the variable name is appended to the path.
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables({sensor1:object}, {remote:"https://mysite.com/sensors/"});
+    ```
+
+    is the same as:
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables({sensor1:object}, {remote:"https://mysite.com/sensors/sensor1"});
+    ```
+
+    This allows you to define multiple remote variables at the same time:
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables({sensor1:object,sensor2:object}, {remote:"https://mysite.com/sensors/"});
+    ```
+
+    In some cases, you may have an existing application that does not provide an easily addressable unique URL for each variable,
+    in this case you can provide a configuration object providing a `get` method (as well as `patch`if the variable is
+    reactive and sending updates to the server), along with an optional `path` and `ttl`.
+
+    If your variable is `reactive` but not expected to send updates to the server, then you will need to do this:
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables({sensor1:object}, {remote:remote({path:"https://mysite.com/sensors/sensor1",patch:()=>{})})});
+    ```
+
+    The `get` method should have the signature `get(path,variable)`. You can use the `path`, the variable definition contained
+    in `variable`, and any variables within the closure of your method to create a URL and do your own fetch that returns
+    a Promise for JSON.
+
+    Your `patch` method, if provided, must parse the `PATCH` response and return a Promise for JSON.
+
+    The patch method should have the signature `patch({target,property,value,oldValue},path,variable)`. (Currently,
+    remotely patched variables must be objects, in the future {value,oldValue} will also be legal for primitive variables).
+
+    You can use data from the `target` object along with the `path`, the variable definition contained in `variable`, and any
+    variables within the closure of your method to create a URL and do your own fetch.
+
+    Your patch method must parse the fetch response and return a Promise for JSON. If your sever does not return the current
+    value of the variable in response to `PATCH`, you may need to implement your `patch` method in a manner that follows the `PATCH`
+    request with a `GET` request.
+
+    The `ttl` is the number of milliseconds between server polls to refresh data. If you do not wish to poll the server,
+    you could also implement `get` so that it establishes a websocket connection and update your variables in realtime. If you do
+    not provide a `ttl`, no polling will occur.
+
+    Here is an example of a custom remote variable configuration for polling sensor data with error handling:
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    self.variables(
+        { sensor1:object, sensor2:object },
+        { remote:
+            remote({
+                path: "./sensors/",
+                ttl: 10000, // get new data every 10 seconds
+                get(path,variable) {
+                    // create a normalized full path to the sensor data
+                    const href = new URL(path + object.id,window.location.href).href;
+                    return fetch(href)
+                        .then((response) => {
+                            if(response.status===200) return response.json();
+                        })
+                }
+            })
+        }
+        );
+    await sensor1;
+    await sensor2;
+    ```
+
+    Here is partial example of a custom remote variable configuration for streaming data over a websocket:
+
+    ```javascript
+    const {remote} = await import("./types.js");
+    // use these in the UI so that it automatically updates
+    self.variables({sensor1:object,sensor2:object},{reactive});
+    // use a variable to hold the websocket
+    self.variables(
+        { ws: object },
+        { remote:
+            remote({
+                path: "./sensors",
+                ttl: 10000, // get new data every 10 seconds
+                async get(path,variable) {
+                // only create one socket
+                if(!ws) {
+                    // create a normalized full path to the sensor data
+                    const href = new URL(path,window.location.href).href.replace("https://","wss://");
+                    ws = new WebSocket(href);
+                    // do websocketty stuff, ideally in a more robust way than this!
+                    ws.onmessage = (event) => {
+                        const {sensorName,value} = event.data;
+                        // assumes sensor1 and sensor2 are the names
+                        self.setVariableValue(sensorName,value);
+                    }
+                // end websockety stuff
+                return Promise.resolve(ws); // you must return a Promise for the socket
+                }
+            })
+        }
+    );
+    await ws;
+    ```
+
+    Since using remote variables requires running a custom server. Below is the source code for a very basic custom
+    NodeJS server that will respond appropriately to remote variable requests and updates for data stored in JSON files.
+
+    ```javascript
+        const http = require("http"),
+            fs = require("fs"),
+            host = 'localhost',
+            port = 8000,
+            requestListener = async function (req, res) {
+                const path = `.${req.url}`;
+                res.setHeader("Access-Control-Allow-Origin","*");
+                res.setHeader("Access-Control-Allow-Methods", "*");
+                res.setHeader("Access-Control-Allow-Headers", "*");
+                res.setHeader("Content-Type", "application/json");
+                if(req.method==="OPTIONS") {
+                    res.end();
+                    return;
+                }
+                if(req.method==="GET") {
+                    console.log("GET",req.url);
+                    res.write(fs.readFileSync(path));
+                    res.end();
+                    return;
+                }
+                const buffers = [];
+                for await(const chunk of req) {
+                    buffers.push(chunk);
+                }
+                const data = JSON.parse(Buffer.concat(buffers).toString());
+                console.log(req.method,req.url,data);
+                if(req.method==="PUT") {
+                    const string = JSON.stringify(data);
+                    fs.writeFileSync(path,string);
+                    res.write(string);
+                    res.end();
+                    return;
+                }
+                if(req.method==="PATCH") {
+                    const {property,value,oldValue} = data,
+                    json = JSON.parse(fs.readFileSync(path));
+                    // optimistic "lock", do not update unless value is same as when last retrieved
+                    if(property!==undefined && json[property]===oldValue) { // probably need a deepEqual for production use
+                    json[property] = value;
+                    fs.writeFileSync(path,JSON.stringify(json))
+                }
+                // just returning what was sent, in production use would probably get real data readings
+                res.write(JSON.stringify(json));
+                res.end();
+                return;
+            },
+            server = http.createServer(requestListener);
+        server.listen(port, host, () => {
+            console.log(`Server is running on http://${host}:${port}`);
+        });
+    ```
+
+    See the tutorial [Extended Functional Type: Remote](./tutorial/5-extended-functional-types.html).
+
+<a id="shared"></a>
+- `object shared:function`
+
+    Lightview can ensure that state is the same across all instances of the same component. Declaring a variable
+    as shared synchrnoizes its value across all instances of the component.
+
+    Although provided as a function to be consistent with other extended types, there is no need to call the function
+    since it takes no configuration data.
+
+    <a id="string"></a>
+- `object string({coerce?:boolean,required?:boolean,whenInvalid?:function,minlength?:number,maxlength?:number,pattern?:RegExp,default?:string})`
+
+    - `minlength` defaults to `0`
+    - `maxlength` `defaults to `Infinity`
+    - `pattern` ensures the value matches the RegExp prior to assignment
+
+</div>
+
+    <script>
+    processMarkdown();
+</script>
+</body>
+</html>

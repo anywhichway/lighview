@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Components:Gantt</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../slidein.html" rel="module">
+    <link href="repl.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+## Gannt
+
+
+
+    </div>
+    <button class="nav-previous"><a href="chart-repl.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="orgchart-repl.html" target="content">Next</a></button>
+</div>
+<div class="repl">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned path="$location" previewheight="400px">
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+<l-head>
+    <link href="./gantt.html" rel="module">
+    <script src="../javascript/lightview.js"></script>
+</l-head>
+<l-body>
+    <l-gantt id="myChart" style="height:400px;" title="Research Project">
+        {
+        options: { },
+        rows: [
+            ['Research', 'Find sources',"2015-01-01", "2015-01-05", null,  100,  null],
+            ['Write', 'Write paper',null,"2015-01-09", "3d", 25, 'Research,Outline'],
+            ['Cite', 'Create bibliography',null, "2015-01-07","1d" , 20, 'Research'],
+            ['Complete', 'Hand in paper', null, "2015-01-10", "1d" , 0, 'Cite,Write'],
+            ['Outline', 'Outline paper', null, "2015-01-06", "1d" , 100, 'Research']
+        ]
+        }
+    </l-gantt>
+</l-body>
+<script>
+
+</script>
+        </template>
+    </l-repl>
+</div>
+<script>
+   processMarkdown();
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Getting Started</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../slidein.html" rel="module">
+    <link href="../components/repl.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+## Getting Started
+
+Install it from [NPMJS](https://www.npmjs.com/package/lightview). Or, visit the repository on [GitHub](https://www.github.com/anywhichway/lightview).
+Note, we will actively iterate on Lightview using this website. If you want the bleeding edge download [lightview.js](./javascript/lightview.js)
+and [types.js](./javascript/types.js) from this website.
+
+It should be evident from the todo example on the [home page](../lightview.html), Lightview components are just HTML files similar to Riot's or Vue's SFCs. And, for
+the most part, the code you write looks like regular JavaScript ... we modeled this on Svelte.
+
+We have included an even simpler Hello World example to the REPL to the right.
+
+There is a special script block in these files with `id="lightview" and inside them `this` is bound to the component inside a mount function.
+
+The HTML in the files is rendered in a shadow DOM node and the style blocks and any other scripts you use are isolated to that shadow DOM
+(although the scrips can walk out of the shadow DOM).
+
+Try changing the message. You can edit the code shaded grey in the REPL to the right.
+
+Now click on `Save` and reload this page by clicking on the `Tutorial` link in the head again. You should come bak to the page with the REPL saved
+in the state you left it. You can reset it back to its original state by clicking on `Reset`.
+
+    </div>
+    <button class="nav-next"><a href="./1-intro-to-variables.html" target="content">Next</a></button>
+</div>
+<div class="repl">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned path="$location" preservebody>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+<template slot="src">
+<l-head>
+<script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+${message}
+    <script id="lightview">
+        (currentComponent||=document.body).mount = function() {
+            this.variables({message:"string"},{reactive});
+            message = "Hello world!"
+        }
+    </script>
+</l-body>
+</template>
+    </l-repl>
+</div>
+<script>
+   processMarkdown();
+</script>
+</body>
+</html>

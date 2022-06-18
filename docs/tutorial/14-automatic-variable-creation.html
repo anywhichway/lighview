@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Form Binding</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Automatic Variable Creation</h2>
+
+You can have Lightview create reactive variables for you but setting `Lightview.createInputVariables=true`.
+
+Then you can use very generic code event listener to collect the values when they change and do something with them.
+
+Lightview has a special `addEventListener` similar to web workers, it is not called from an object, it is free standing
+in the scope of a Lightview script. Currently, the only events this handles are change events on variables.
+
+Conveniently, components have a method `getVariableData` that returns all variable values as an object keyed by
+variable names.
+
+*Note*: Reactive variables bound to forms change their values whenever there is input to a field, not just when the
+field value changes due to a focus change.
+
+See the API documentation on [Lightview.createInputVariables](../api.html#createInputVariables).
+
+    </div>
+    <button class="nav-previous"><a href="./13-input-binding.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./15-form-binding.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    Text: <input type="text" value="${textValue}"><br>
+    Checkbox1: <input type="checkbox" value="${checkbox1}" checked><br>
+    Checkbox2: <input type="checkbox" value="${checkbox2}"><br>
+</l-body>
+<script id="lightview">
+    Lightview.createInputVariables = true;
+    currentComponent.mount = function() {
+        addEventListener("change",(event) => {
+            const eventEl = document.createElement("div"),
+                varsEl = document.createElement("div"),
+                data = this.getVariableData();
+            eventEl.innerText = JSON.stringify(event);
+            this.shadowRoot.appendChild(eventEl);
+            varsEl.innerText = JSON.stringify(data);
+            this.shadowRoot.appendChild(varsEl);
+        })
+    }
+</script>
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

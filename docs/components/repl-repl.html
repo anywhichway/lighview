@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Components:REPL</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../slidein.html" rel="module">
+    <link href="repl.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+## REPL
+
+REPL itself is a component, `l-repl`.
+
+To the right you will see source similar to that used to define the REPL in the tab menu for this website.
+
+The REPL component has lots of configuration options, so you can use it to just display example code based on
+source files if you want or focus users on a specific aspect of the code.
+
+Try these steps to see the flexibility of `l-repl`:
+
+1. Delete the entire slot and its contents starting with `<template slot="src"> ... </template>`. You should now
+see a REPL with no content in each of the displayed areas.
+2. Paste `src="./repl-as-src.html"` as one of the attributes of the `l-repl`. You should now see the same code you
+saw to start with, except it is loaded from a file.
+3. Paste `readonly` as an attribute to the `l-repl`. Now, none of the code can be edited. also, the `Save` button in the
+frames section disappears. (You probably realized this by now, users can save their REPL edits to `IndexedDB` locally.  Next time
+they visit, the REPL will be in the same state it was left in ... unless it has been more than 10 days on IOS ... Apple
+auto clears `IndexedDB for lack of use ;-(.).
+4. Delete `readonly` from the `l-repl` (Ctrl-Z should work) and paste it as an attribute to "bodyhtml" slot. Now the body
+can't be edited. You can do this with the other slots also.
+5. Remove `previewpinned` so as not to distract the user with a preview unless it is requested.
+5. Assume you want to focus the user attention of the body and script without editing. Remove the
+slots "headhtml" and "css". Add "readonly" to the "script" slot, or the `l-repl`. Remove `previewheight`.
+Add `hidetabs` to the `l-repl`.
+
+One final note, if you want to use multiple script tags, then add `maintainbody` to the `l-repl` and your scripts will be
+left alone, otherwise, the `l-repl` assumes you only have one script.
+
+
+    </div>
+    <button class="nav-previous"><a href="gauge-repl.html" target="content">Previous</a></button>
+</div>
+<div class="repl">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned path="$location" previewheight="750px" maintainbody>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <div slot="css"></div>
+        <template slot="src">
+<l-head>
+    <link href="./repl.html" rel="module">
+    <script src="../javascript/lightview.js"></script>
+</l-head>
+<l-body>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned previewheight="250px">
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <div slot="css"></div>
+        <template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    <div class="message">${message}</div>
+</l-body>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({message:"string"},{set:"Hello world!"});
+    }
+</script>
+<style>
+    .message { font-size: large }
+</style>
+        </template>
+    </l-repl>
+</l-body>
+
+        </template>
+    </l-repl>
+</div>
+<script>
+   processMarkdown();
+</script>
+</body>
+</html>

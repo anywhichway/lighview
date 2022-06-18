@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Event Listeners</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Event Listeners</h2>
+
+Event listeners can be added to any HTML element using the `l-on:[eventType]` directive, e.g.
+`<div l-on:click="${myClickHandler}"></div>`.
+
+You can choose to keep the listeners private to the component or expose them as properties. To keep them
+private, use variables of type "function". To expose them, just define them on `this` or `self`.
+
+*Caution*: If you define public listeners, make sure their names do not collide with standard HTML element property names,
+e.g. `getComputedStyle`.
+
+
+</div>
+    <button class="nav-previous"><a href="./7-monitoring-with-observers.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./9-intro-to-components.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    <button l-on:click="${onClickPrivate}">Private</button>
+    <button l-on:click="${onClickPublic}">Public</button>
+    ${clicked}
+</l-body>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({clicked:"string"},{reactive,set:""});
+        this.variables({onClickPrivate:"function"});
+
+        onClickPrivate = ({target}) => clicked = `clicked ${target.innerText}`;
+
+        this.onClickPublic = ({target}) => clicked = `clicked ${target.innerText}`;
+    }
+</script>
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

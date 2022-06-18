@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Extended Data Types</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Extended Data Types</h2>
+
+Lightview provides extended data types that allow you to put additional constraints on variable values. For example:
+
+- `number` supports a min, max, step, allowNaN and coercion control
+- `string` supports minlength, maxlength, pattern (a RegExp), and coercion control.
+
+Extended types must be imported from the file `types.js`. To do this, you must make the `mount` function asynchronous
+and `await` the result of the `import`.
+
+Unlike standard data types, coercion is off by default for extended data types, try setting the value to "2". You should see an error message.
+Then, try adding `coerce:true` to  the variable configuration. The error message should go away.
+
+Try setting the value to 3. You should get a different error message.
+
+Try removing all the configuration options, i.e. use `number({})`. The error message should disappear. Set the value to
+NaN. This should work. Now add `allowNaN:false`. You should get an error message.
+
+*Note*: You will see "@NaN" in the error message. JavaScript does not stringify `NaN`, `-Infinity` or `Infinity` when
+converting to JSON, so Lightview has to use an unambiguous string representation.
+
+Try modifying the type to just `number` without making it a function call. Then assign a number or a string.
+
+Try modifying the type to be a `string` and playing with the configuration options and values.
+
+Additional extended types and info on how to manage errors can be found in the [API documentation](./api.html).
+
+</div>
+    <button class="nav-previous"><a href="./3-data-types.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./5-extended-functional-types.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    Result: ${result}
+</l-body>
+<script id="lightview">
+    currentComponent.mount = async function() {
+        const {number} = await import("../javascript/types.js");
+        this.variables({result:"any"},{reactive});
+
+        this.variables({testVariable:number({min:0,max:10,step:2})});
+
+        try {
+            testVariable = 0;
+            result = testVariable;
+        } catch(e) {
+            result = e+"";
+        }
+    }
+</script>
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

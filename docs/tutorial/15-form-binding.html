@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Form Binding</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Form Binding</h2>
+
+Forms allow you to map a set of variables to a single object.
+
+If you provide a `value` attribute to a form element and the `value` attribute points to a variable that is an `object`,
+then the values of the input elements of the form will be mapped to properties on the variable using their `name` attributes
+when the form is submitted.
+
+*Note*, the default action of the form is prevented unless there is an `action` attribute. Also, auto bound forms handle their inputs
+on submit, not as the field values change.
+
+Currently, the entire object bound to the form value is replaced. Partial updates may be possible in the future.
+
+If the variable bound to the form is `reactive`, then any variables bound to the input fields SHOULD NOT be part of the
+form variable, i.e. associated to the form variable via a dot annotated path, because the form variable will already be updated as the values
+change.
+
+Forms are also the way you can efficiently collect data without two-way data binding. You simply bind non-reactive variables to the form and the inputs.
+
+Try adding an input field to the form.
+
+```html
+<p>Notes: <textarea name="notes"></textarea></p>
+```
+
+Try adding non-reactive variables.
+
+&lt;body&gt;
+```html
+<form value="${user}">
+    <p>Email: <input name="email" type="email" value="${email}" required></p>
+    <p>Phone: <input name="phone" type="tel" value="${phone}" required></p>
+    <p><input type="submit"></input></p>
+</form>
+```
+&lt;/body&gt;
+
+
+&lt;script&gt;
+```javascript
+currentComponent.mount = function() {
+    this.variables({user:"object"},{set:{}});
+    this.variables({email:"string"},{set:"joe@somewhere.com"});
+    this.variables({phone:"string"},{set:"555-555-5555"});
+
+    addEventListener("change",({variableName}) => {
+        const el = document.createElement("div");
+        el.innerText = JSON.stringify(this.getVariableValue(variableName));
+        this.shadowRoot.appendChild(el);
+    })
+}
+```
+&lt;/script&gt;
+
+    </div>
+    <button class="nav-previous"><a href="./14-automatic-variable-creation.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./16-if-directive.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned previewheight="250px">
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    <form value="${user}">
+        <p>Email: <input name="email" type="email" required></p>
+        <p>Phone: <input name="phone" type="tel" required></p>
+        <p><input type="submit"></input></p>
+    </form>
+</l-body>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({user:"object"},{reactive,set:{}});
+
+        addEventListener("change",({variableName}) => {
+            const el = document.createElement("div");
+            el.innerText = JSON.stringify(this.getVariableValue(variableName));
+            this.shadowRoot.appendChild(el);
+        })
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Data Types</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Data Types</h2>
+
+Variables in Lightview can be typed as any of the standard JavaScript `typeof` results with the exception of "undefined".
+Runtime coercion is used and errors are thrown if a value can't be coerced into the correct type. If you do not want coercion,
+then use the extended data types described [next](./4-extended-data-types.html).
+
+- "boolean"
+    Since the focus of Lightview is UI management the values 1, "true", "on", "checked", "selected" all coerce to `true`. The values "false" and 0 coerce to `false`. The value `undefined` remains `undefined`, i.e. an indeterminate state.
+- "function"
+    Variables of type "function" are useful for defining event listeners [as described later](./8-event-listeners.html).
+- "number"
+- "object"
+- "string"
+- "symbol"
+
+Additionally, variables can be of type "any".
+
+And, if you wish, a variable to be an instance of a particular type of object, you can use an unquoted reference to
+any in scope constructor, e.g. `Array` or `MyCustomConstructor`.
+
+The REPL is configured to display assignment results and errors. Try modifying the `testVariable` type and assignment.
+Or, cut and paste this example into the code section. Then modify `[1,2,3]` to just be `1` or "1,2,3":
+
+```javascript
+currentComponent.mount = function() {
+    this.variables({result:"any"},{reactive});
+    this.variables({testVariable:Array});
+
+    try {
+        testVariable = [1,2,3];
+        result = testVariable;
+    } catch(e) {
+        result = e+"";
+    }
+}
+```
+</div>
+    <button class="nav-previous"><a href="./2-imported-and-exported-variables.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./4-extended-data-types.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="script"></div>
+        <template slot="src">
+            <l-head>
+<script src="../javascript/lightview.js?as=x-body"></script>
+            </l-head>
+            <l-body>
+Result: ${result}
+            </l-body>
+            <script id="lightview">
+currentComponent.mount = function() {
+    this.variables({result:"any"},{reactive});
+    this.variables({testVariable:"boolean"});
+
+    try {
+        testVariable = true;
+        result = testVariable;
+    } catch(e) {
+        result = e+"";
+    }
+}
+            </script>
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

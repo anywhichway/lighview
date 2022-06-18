@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Imported Components</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Imported Components</h2>
+
+You can import instances of components by making a CSS selector be the target of an anchor and  having the `href` point to a component file.
+
+All elements that match the selector will have their content replaced by an instance of the component.
+
+So long as the file name for the imported component includes a hyphen, it will be used as the tag name. If not, an `l-`
+will be prefixed.
+
+You can alias the filename to your own tagname to avoid collisions with other components by using an `as` attribute on the anchor.
+
+*Caution*: You MUST absolutely trust the origin from which you are loading a component. Components can walk and modify
+the DOM.
+
+Enabling imports is done automatically for component HTML. Since this example is not itself a component, the anchors are
+enabled with the `DOMContentLoaded` event listener.
+
+If you delete the entire script tag contents and add `?as=x-body` to the script in the head, the example will still work. The
+anchors are enabled automatically because you have turned the example into a component.
+
+
+    </div>
+    <button class="nav-previous"><a href="./11-linked-components.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./13-input-binding.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js"></script>
+</l-head>
+<l-body>
+    <p>This <a href="../tutorial/my-component.html" target="#mytarget">link</a> will import `my-component`, to replace the target.</p>
+    <p id="mytarget">Target Area</p>
+</l-body>
+<script>
+    document.addEventListener("DOMContentLoaded",() => Lightview.enableAnchors(document.body));
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

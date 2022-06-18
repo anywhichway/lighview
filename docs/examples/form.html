@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Form</title>
+    <script src="../../lightview.js?as=x-body"></script>
+</head>
+
+<body>
+<div style="margin:20px;padding:5px;border:1px;border-style:solid;border-color:${color}">
+    <p>
+        <input type="text" value="${color}">
+        <input type="radio" name="color" value="red">
+        <input type="radio" name="color" value="yellow">
+        <input type="radio" name="color" value="green">
+        <select value="${color}">
+            <option value="red">red</option>
+            <option>yellow</option>
+            <option> green</option>
+        </select>
+    <div>Hamburger options:</div>
+    <select value="${hamburger}" multiple>
+        <option value="lettuce">lettuce</option>
+        <option value="tomato">tomato</option>
+        <option>cheese</option>
+    </select>
+    </p>
+    Expose: <input type="checkbox" value="${checked}">
+    <p l-if="${checked}">
+        Now you've done it. You've exposed me.
+    </p>
+    <p id="variables">
+
+    </p>
+</div>
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        self.variables({color: "string"}, {reactive});
+        addEventListener("change", () => {
+            variableValues()
+        });
+        self.addEventListener("connected", () => {
+            color = "yellow";
+            checked = true;
+            hamburger = ["cheese"];
+        });
+        // demo instrumentation
+        const variableValues = () => {
+            const el = self.getElementById("variables");
+            while (el.lastElementChild) el.lastElementChild.remove();
+            self.getVariableNames().forEach((name) => {
+                const line = document.createElement("div");
+                line.innerText = `${name} = ${JSON.stringify(self.getVariableValue(name))}`;
+                el.appendChild(line);
+            });
+        };
+    }
+  </script>
+</body>
+
+</html>

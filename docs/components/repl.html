@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:REPL</title>
+    <style>
+        .hljs[slot] { padding: 5px; }
+    </style>
+</head>
+<body>
+<link rel="stylesheet" href="../css/highlightjs.min.css" export>
+<script src="../javascript/lightning-fs.js"></script>
+<script src="../javascript/isomorphic-git.js"></script>
+<script src="../javascript/highlightjs.min.js"></script>
+<script src="../javascript/turndown.js"></script>
+<div id="content" style="flex:auto;min-width:500px;border:1px solid;padding:10px;margin-top:1em;margin-bottom:1em; auto;overflow:auto">
+    <div style="display:flex;flex-direction:column;">
+        <div l-if="${!hidetabs}" id="tabs" style="flex-grow:0;width:100%;border:1px;padding-bottom:5px;text-align:center" hidden>
+            <span style="padding-right:10px" for="headhtml"><label for="headhtml" l-on:click="${onTabClick}">HTML Head</label><input for="headhtml" value="${headhtmlPinned}" type="checkbox"  l-on:click="${onPinClick}"></span>
+            <span style="padding-right:10px" for="bodyhtml"><label for="bodyhtml" l-on:click="${onTabClick}">HTML Body</label><input for="bodyhtml" value="${bodyhtmlPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+            <!--span style="padding-right:10px" for="markdown"><label for="markdown" l-on:click="${onTabClick}">Markdown (Body)</label><input for="markdown" value="${markdownPinned}" type="checkbox" l-on:click="${onPinClick}"></span-->
+            <span style="padding-right:10px" for="css"><label for="css" l-on:click="${onTabClick}">Style</label><input for="css" value="${cssPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+            <span style="padding-right:10px" for="script"><label for="script" l-on:click="${onTabClick}">Script</label><input for="script" value="${scriptPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+            <span style="padding-right:10px" for="preview"><label for="preview" l-on:click="${onTabClick}">Preview</label><input for="preview" value="${previewPinned}" type="checkbox" l-on:click="${onPinClick}"></span>
+        </div>
+    </div>
+    <div id="headhtml" style="margin:10px" class="language-html"><slot name="headhtml"></slot></div>
+    <div id="bodyhtml" style="margin:10px" class="language-html"><slot name="bodyhtml"></slot></div>
+    <!--textarea id="markdown" style="margin-right:2px;">${markdown}</textarea-->
+    <div id="css" style="margin:10px" class="language-css"><slot name="css"></slot></div>
+    <div id="script" style="margin:10px" class="language-javascript"><slot name="script"></slot></div>
+    <iframe id="preview" style="height:${previewheight||'150px'};max-width:99%;width:99%;" hidden></iframe>
+</div>
+<div l-if="${editable}" style="width:100%;text-align:center">
+    <div style="padding:5px">${source}</div>
+    <button l-on:click="${doSave}">Save</button>&nbsp;&nbsp;
+    <button l-if="${canReset}" l-on:click="${doReset}">Reset</button>
+</div>
+<style>
+    label:hover {
+        text-decoration: underline
+    }
+    slot[name=headhtml]:not([hidden])::before { content: "<head>" }
+    slot[name=headhtml]:not([hidden])::after { content: "</head>" }
+    slot[name=bodyhtml]:not([hidden])::before { content: "<body${bodyattributes ? ' ' + bodyattributes : ''}>" }
+    slot[name=bodyhtml]:not([hidden])::after { content: "</body>" }
+    slot[name=css]:not([hidden])::before { content: "<style>" }
+    slot[name=css]:not([hidden])::after { content: "< /style>" }
+    slot[name=script]:not([hidden])::before { content: "<script ${scriptattributes}>" }
+    slot[name=script]:not([hidden])::after { content: "</script>" }
+</style>
+<script id="lightview">
+    (document.currentComponent||(document.currentComponent=document.body)).mount = async function() {
+        let CJ
+        try {
+            const {CodeJar} = await import(new URL("../javascript/codejar.min.js", this.componentBaseURI).href);
+            CJ = CodeJar;
+        } catch {
+            
+        }
+        let turndownService;
+        try {
+            turndownService = new TurndownService({
+                headingStyle: "atx",
+                codeBlockStyle: "fenced",
+                emDelimiter: "*"
+            });
+            turndownService.keep(() => true);
+        } catch(e) {
+
+        }
+
+        const {html, css, script} = await import(new URL("../javascript/types.js", this.componentBaseURI).href);
+        self.variables({
+            onTabClick: "function",
+            onPinClick: "function",
+            doSave: "function",
+            doReset: "function"
+        });
+        self.variables({
+            wysiwygPinned: "boolean",
+            headhtmlPinned: "boolean",
+            headhtml: html,
+            bodyhtmlPinned: "boolean",
+            bodyhtml: html,
+            bodyattributes:"string",
+            markdownPinned: "boolean",
+            markdown: "string",
+            cssPinned: "boolean",
+            cssText: css,
+            scriptPinned: "boolean",
+            scriptText: script,
+            scriptattributes:"string",
+            source: "string",
+            canReset: "boolean",
+            editable: "boolean"
+        }, {reactive});
+        self.variables({
+            previewPinned: "boolean"
+        },{imported,reactive});
+        self.variables({
+            src: "string",
+            path: "string",
+            hidetabs: "boolean",
+            maintainbody: "boolean",
+            contentbackground:"string",
+            readonly: "boolean",
+            previewheight: "string"
+        }, {imported});
+
+        bodyhtmlPinned = true;
+        canReset = false;
+        bodyattributes = "";
+        scriptattributes = "";
+        editable = false;
+
+        const getPath = () => {
+            if(path==="$location" || path==null) return source = window.location.pathname;
+            return source = path;
+        }
+
+        const trimContent = (text) => {
+            let result = text;
+            if(result[0]==="\n") result = result.substring(1);
+            while(result[result.length-1]==="\n") result = result.substring(0,result.length-1);
+            return result;
+        }
+
+        const loadFromFile = async () => {
+            const html = await fs.readFile(url.pathname, {encoding: "utf8"});
+            source = `IndexedDB://${url.hostname + "_repl"}${url.pathname}`;
+            return html;
+        };
+
+        const loadFromServer = async () => {
+            const response = await fetch(url.href);
+            const html = await response.text();
+            source = url.href;
+            return html;
+        };
+
+        const loadFromTemplate = () => {
+            const templateEl = this.querySelector('[slot="src"]');
+            if(templateEl) {
+                const template = document.createElement("div");
+                template.innerHTML = templateEl.innerHTML;
+                return template;
+            }
+        }
+
+        const initFromTemplate = (template) => {
+            head_el = document.createElement("head");
+            body_el = document.createElement("body");
+            if(template) {
+                const head = template.querySelector("l-head");
+                if(head) {
+                    headhtml = trimContent(head.innerHTML || "");
+                    [...head.attributes].forEach((attr) => head_el.setAttribute(attr.name,attr.value));
+                } else {
+                    headhtml = "";
+                }
+                style_el = template.querySelector("style");
+                if(style_el) {
+                    cssText = trimContent(style_el.innerText);
+                    style_el.remove();
+                } else {
+                    style_el = document.createElement("style");
+                    cssText = "";
+                }
+                script_el = template.querySelector('script:not([src*="lightview.js"])');
+                if(script_el && script_el.parentElement===template) {
+                    scriptText = trimContent(script_el.innerText);
+                    script_el.remove();
+                } else {
+                    script_el = document.createElement("script");
+                    scriptText = "";
+                }
+                const body = template.querySelector("l-body");
+                if(body) {
+                    bodyhtml = trimContent(body.innerHTML);
+                    [...body.attributes].forEach((attr) => body_el.setAttribute(attr.name,attr.value))
+                } else {
+                    bodyhtml = "";
+                }
+            } else {
+                script_el = document.createElement("script");
+                style_el = document.createElement("style");
+                bodyhtml = "";
+                headhtml = "";
+                scriptText = "";
+                cssText = "";
+            }
+            body_el.appendChild(style_el);
+            body_el.appendChild(script_el);
+            bodyattributes = "";
+            [...body_el.attributes].forEach((attr) => bodyattributes = bodyattributes + " " + attr.name + '=\\"' + attr.value + '\\"');
+            scriptattributes = "";
+            [...script_el.attributes].forEach((attr) => scriptattributes = scriptattributes + " " + attr.name + '=\\"' + attr.value + '\\"');
+        }
+
+        let head_el,
+            body_el,
+            style_el,
+            script_el;
+        const parseFullHTML = (fullHTML) => {
+            const parser = new DOMParser(),
+                fragment = parser.parseFromString(fullHTML, "text/html");
+                head_el = fragment?.head,
+                body_el = fragment?.body,
+                style_el = fragment?.body.querySelector("style"),
+                script_el = fragment?.body.querySelector("script:not([src])");
+            if(!maintainbody) {
+                if (style_el) {
+                    cssText = trimContent(style_el?.innerHTML);
+                    style_el.remove();
+                } else {
+                    cssText = "";
+                }
+                if (script_el) {
+                    scriptText = trimContent(script_el?.innerHTML);
+                    script_el.remove();
+                } else {
+                    scriptText = "";
+                }
+            }
+            headhtml = trimContent(head_el?.innerHTML || "");
+            bodyhtml = trimContent(body_el?.innerHTML);
+            if(style_el && body_el) body_el.appendChild(style_el);
+            if(script_el && body_el) body_el.appendChild(script_el);
+        };
+
+        let fs,
+            url;
+        if (src) {
+            url = new URL(src,document.baseURI); // , document.baseURI
+            if(typeof(LightningFS)!=="undefined") {
+                fs = new LightningFS(url.hostname + "_repl").promises;
+            }
+            try {
+                parseFullHTML(await loadFromFile());
+                canReset = true;
+            } catch (e) {
+                try {
+                    parseFullHTML(await loadFromServer());
+                } catch (e) {
+                    fullHTML = e.message;
+                }
+            }
+        } else {
+            url = new URL(getPath(),document.baseURI);
+            if(typeof(LightningFS)!=="undefined") {
+                fs = new LightningFS(url.hostname + "_repl").promises;
+            }
+            try {
+                parseFullHTML(await loadFromFile());
+                canReset = true;
+            } catch (e) {
+                initFromTemplate(loadFromTemplate());
+            }
+        };
+
+        // initialize variables
+        markdown = "";
+
+        const tabs = [...self.querySelectorAll("span[for]")]
+            .map((span) => {
+                const id = span.getAttribute("for");
+                if(id==="preview") {
+                    const el = self.getElementById(id);
+                    if(previewPinned) el.removeAttribute("hidden");
+                    return [id, el];
+                }
+                const slot = self.querySelector(`[slot="${id}"]`);
+                if(slot) {
+                    if(slot.hasAttribute("hidden")) self.querySelector(`slot[name="${id}"]`)?.setAttribute("hidden","");
+                    else {
+                        self.varsProxy[`${id}Pinned`] = true;
+                        self.querySelector(`slot[name="${id}"]`)?.setAttribute("checked","");
+                    }
+                } else {
+                    self.querySelector(`slot[name="${id}"]`)?.setAttribute("hidden","");
+                    span.style.display = "none";
+                }
+                return [id, slot];
+            }).filter(([id, slot]) => slot!=null);
+
+        const showTab = (targetid) => {
+            tabs.forEach(([id, el, label]) => {
+                if (id === targetid || self.varsProxy[`${id}Pinned`]) {
+                    el.removeAttribute("hidden");
+                    self.querySelector(`slot[name="${id}"]`)?.removeAttribute("hidden");
+                } else if (!self.varsProxy[`${id}Pinned`]) {
+                    el.setAttribute("hidden","");
+                    self.querySelector(`slot[name="${id}"]`)?.setAttribute("hidden","");
+                }
+            });
+        };
+
+        const hideTab = (targetid) => {
+            tabs.forEach(([id, el, label]) => {
+                if (id === targetid) {
+                    el.setAttribute("hidden","");
+                    self.querySelector(`slot[name="${id}"]`)?.setAttribute("hidden","");
+                }
+            });
+        };
+
+        const replaceEntities = (el) => {
+            [...el.childNodes].forEach((node) => {
+                if(node.nodeType===Node.TEXT_NODE) {
+                    if(["&lt;","&gt;","&amp;"].some((entity) => node.data.includes(entity))) {
+                        node.data = node.data.replaceAll(/&lt;/g,"<")
+                            .replaceAll(/&gt;/g,">")
+                            .replaceAll(/&amp;/g,"&");
+                    }
+                } else if(node.nodeType===Node.ELEMENT_NODE) {
+                    replaceEntities(node);
+                }
+            })
+        };
+
+        onTabClick = (event) => {
+            showTab(event.target.getAttribute("for"))
+        }
+
+        onPinClick = (event) => {
+            const id = event.target.getAttribute("for"),
+                checked = self.varsProxy[`${id}Pinned`] = event.target.checked;
+            if (checked) onTabClick(event);
+            else hideTab(id);
+        };
+
+        doSave = async () => {
+            const parts = url.pathname.split("/");
+            let dir = "";
+            parts.shift();
+            parts.pop();
+            for (const part of parts) {
+                dir = dir + "/" + part;
+                try {
+                    await fs.mkdir(dir);
+                } catch (e) {
+                    if (e.message === "EEXIST") continue;
+                    throw e;
+                }
+            }
+            await fs.writeFile(url.pathname, doPreview(), {encoding: "utf8"}, () => {
+            });
+            source = `IndexedDB://${url.hostname + "_repl"}${url.pathname}`;
+            canReset = true;
+        };
+
+        doReset = async () => {
+            originalHTML = null;
+            try {
+                await fs.unlink(url.pathname);
+            } catch (e) {
+
+            }
+            if (src) {
+                try {
+                    parseFullHTML(await loadFromServer());
+                    source = url.href;
+                    createEditor();
+                } catch (e) {
+                    previewEl.innerHTML = fullHTML = e.message;
+                }
+            } else {
+                try {
+                    initFromTemplate(loadFromTemplate());
+                    source = getPath();
+                    createEditor();
+                } catch (e) {
+                    previewEl.innerHTML = fullHTML = e.message;
+                }
+            }
+            canReset = false;
+        };
+
+        const content = self.getElementById("content");
+        let originalHTML;
+        const doPreview = () => {
+            head_el.innerHTML = `<base href=\"${document.baseURI}\"></base>` + trimContent(headhtml); //
+            body_el.innerHTML = trimContent(bodyhtml);
+            if(!maintainbody) {
+                style_el.innerText = trimContent(cssText);
+                script_el.innerHTML = "currentComponent ||= document.body;" + trimContent(scriptText);
+                body_el.appendChild(style_el);
+                body_el.appendChild(script_el);
+                style_el.innerText = style_el.innerText.replaceAll(/<br>/g,"\n");
+            }
+            const str = "<html>" + head_el.outerHTML + body_el.outerHTML + "</html>",
+                blob = new Blob([str], {type : 'text/html'}),
+                newurl = window.URL.createObjectURL(blob);
+            if(originalHTML) canReset = originalHTML!=str;
+            else originalHTML = str;
+            previewEl.src = newurl;
+            content.style.minWidth = self.style.minWidth;
+            content.style.maxWidth = self.style.maxWidth;
+            //content.style.width = tabs.reduce((min,tab) => Math.max(min,tab[1].clientWidth),0)+"px";
+            return str;
+        };
+
+        const tabsEl = self.getElementById("tabs"),
+            headhtmlEl = self.querySelector('[slot="headhtml"]'),
+            bodyhtmlEl = self.querySelector('[slot="bodyhtml"]'),
+            markdownEl = self.getElementById("markdown"),
+            cssEl = self.querySelector('[slot="css"]'),
+            scriptEl = self.querySelector('[slot="script"]'),
+            previewEl = self.getElementById("preview");
+
+        const highlight = (el,...args) => {
+            hljs.highlightElement(el,...args);
+        }
+
+        const setCode = (el,code,language) => {
+            const pre = document.createElement("pre"),
+                div = document.createElement("div");
+            pre.style.margin = "5px";
+            div.className = `language-${language}`;
+            div.innerText = trimContent(code).replaceAll(/\n/g,"|newline|");
+            hljs.highlightElement(div);
+            pre.innerHTML = div.innerHTML.replaceAll(/\|newline\|/g,"\n");
+            while(el.lastChild) el.lastChild.remove();
+            replaceEntities(el);
+            el.append(pre);
+        }
+
+        if(headhtmlEl) {
+            headhtmlEl.className = "language-html";
+            if(headhtmlEl.hasAttribute("readonly") || readonly) {
+                setCode(headhtmlEl,headhtml,"html");
+            } else {
+                editable = true;
+                const bodyJar = CJ(headhtmlEl, highlight);
+                bodyJar.updateCode(headhtml);
+                replaceEntities(headhtmlEl);
+                bodyJar.onUpdate(code => {
+                    replaceEntities(headhtmlEl);
+                    headhtml = code;
+                    doPreview();
+                })
+            }
+        }
+
+        const createEditor = () => {
+
+            if (bodyhtmlEl) {
+                bodyhtmlEl.className = "language-html";
+                if (bodyhtmlEl.hasAttribute("readonly") || readonly) {
+                    setCode(bodyhtmlEl, bodyhtml, "html");
+                } else {
+                    editable = true;
+                    const bodyJar = CJ(bodyhtmlEl, highlight);
+                    bodyJar.updateCode(bodyhtml);
+                    replaceEntities(bodyhtmlEl);
+                    bodyJar.onUpdate(code => {
+                        replaceEntities(bodyhtmlEl);
+                        bodyhtml = code;
+                        doPreview();
+                    });
+                }
+            }
+
+            if (cssEl) {
+                cssEl.className = "language-css";
+                if (cssEl.hasAttribute("readonly") || readonly) {
+                    setCode(cssEl, cssText, "css");
+                    //cssEl.innerText = cssText;
+                } else {
+                    editable = true;
+                    const bodyJar = CJ(cssEl, highlight);
+                    bodyJar.updateCode(cssText);
+                    bodyJar.onUpdate(code => {
+                        cssText = code;
+                        doPreview();
+                    });
+                }
+            }
+
+            if (scriptEl) {
+                scriptEl.className = "language-javascript";
+                if (scriptEl.hasAttribute("readonly") || readonly) {
+                    setCode(scriptEl, scriptText, "javascript");
+                    //scriptEl.innerText = scriptText;
+                } else {
+                    editable = true;
+                    const bodyJar = CJ(scriptEl, highlight);
+                    bodyJar.updateCode(scriptText);
+                    replaceEntities(scriptEl);
+                    bodyJar.onUpdate(code => {
+                        replaceEntities(scriptEl);
+                        scriptText = code;
+                        doPreview();
+                    });
+                }
+            }
+
+            doPreview();
+        }
+
+        /*let prevmarkdown; // prevents indirect recursion
+        observe(() => {
+            const text = turndownService.turndown(bodyhtml).trim();
+            if (text && text !== prevtext) {
+                markdown = markdownEl.innerHTML = prevmarkdown = text;
+            }
+        });
+
+        let prevbodyhtml; // prevents indirect recursion
+        observe(() => {
+            const html = marked.parse(markdown).trim();
+            if (html && html !== prevbodyhtml) {
+                bodyhtml = bodyhtmlEl.innerText = prevbodyhtml = html;
+            }
+        });*/
+
+
+        self.addEventListener("mounted", () => {
+            tabsEl.removeAttribute("hidden");
+            if(contentbackground) content.style.background = contentbackground;
+            createEditor();
+        });
+    }
+</script>
+</body>
+</html>

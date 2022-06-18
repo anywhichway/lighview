@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Template Components</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Template Components</h2>
+
+You can use templates to define components.
+
+Note how the `mount` function is defined during component creation and the script containing it does not need to have
+the id `lightview`.
+
+Try and change the tag name to something else. (Hint: You do not need to change the id of the template. And, you will
+need to make changes to both the `head` and the `body`).
+
+See the API documentation on [Lightview.createComponent](../api.html#createComponnent).
+
+</div>
+    <button class="nav-previous"><a href="./9-intro-to-components.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./11-linked-components.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script" readonly></div>
+        <template slot="src">
+<l-head>
+    <template id="my-component">
+        <button l-on:click="${onClickPrivate}">Private</button>
+        <button l-on:click="${onClickPublic}">Public</button>
+        ${clicked}
+        <style>
+            button {
+                border: none;
+                border-radius: 5px;
+            }
+        </style>
+    </template>
+    <script src="../javascript/lightview.js"></script>
+    <script>
+        const component = Lightview.createComponent("my-component",
+                document.getElementById("my-component"),
+            {
+                mount: function () {
+                    this.variables({clicked: "string"}, {reactive,set:""});
+                    this.variables({onClickPrivate: "function"});
+
+                    onClickPrivate = ({target}) => clicked = `clicked ${target.innerText}`;
+
+                    this.onClickPublic = ({target}) => clicked = `clicked ${target.innerText}`;
+                }
+            })
+    </script>
+</l-head>
+<l-body>
+    <my-component></my-component>
+</l-body>
+
+        </template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

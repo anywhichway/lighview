@@ -1,0 +1,35 @@
+.toc {
+    position:fixed;
+    background:white;
+    overflow-y:hidden;
+    overflow-x:hidden;
+    border:1px solid;
+    margin-right:5px;
+    margin-left: 0px;
+    height:100%;
+    min-width:10px;
+    max-width:250px;
+    top:0px;
+    bottom:0px;
+}
+.markdown {
+    margin-left:20px
+}
+.tutorial-body {
+    display:flex;
+    margin: 0px;
+    overflow: auto;
+}
+.tutorial-instructions {
+    margin-right:10px;
+    min-width: 500px
+}
+
+.nav-previous {
+    float:left;
+    margin-left:20px
+}
+
+.nav-next {
+    float:right;
+}

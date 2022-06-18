@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title><!DOCTYPE html>
+      <html lang="en">
+      <head>
+      <meta charset="UTF-8">
+      <title>Lightview:REPL</title>
+  <link href="./components/repl.html" rel="module">
+  <script src="./javascript/highlightjs.min.js"></script>
+  <script src="./javascript/marked.min.js"></script>
+  <script src="./javascript/utils.js"></script>
+</head>
+<body>
+<script src="./javascript/lightview.js"></script>
+<div class="markdown">
+
+</div>
+  <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned previewheight="250px">
+    <div slot="headhtml"></div>
+    <div slot="bodyhtml"></div>
+    <div slot="script"></div>
+    <div slot="css"></div>
+    <template slot="src">
+<l-head>
+  <script src="./javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+  <div class="message">${message}</div>
+</l-body>
+<script id="lightview">
+  currentComponent.mount = function() {
+    this.variables({message:"string"},{set:"Hello world!"});
+  }
+</script>
+<style>
+  .message { font-size: large }
+</style>
+</template>
+  </l-repl>
+<script>
+  processMarkdown();
+</script>
+</body>
+</html>

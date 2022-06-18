@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Extended Functional Type:Shared</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Extended Functional Type - Shared</h2>
+
+The extended functional type `shared` automatically synchronizes a value across all instances of the same component.
+
+The `shared` type must be loaded from the file `types.js` as shown in the example REPL.
+
+In this example, we provide at attribute value on only one of the &lt;my-input&gt; tags and it is automatically
+propagated as a value to the other tag. Try editing the values.
+
+Note how the `myinput` component it defined in a &lt;template&gt; tag rather than another file. This is
+covered in more detail in the [Template Components](./10-template-components.html) section of the tutorial.
+
+
+</div>
+    <button class="nav-previous"><a href="./5-extended-functional-types.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./5.2-extended-functional-types.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+<template slot="src">
+<l-head>
+    <template id="my-input">
+        Name: <input value="${name}">
+        <script id="lightview">
+            currentComponent.mount = async function() {
+                this.variables(
+                    { shared: "function"},
+                    { constant: (await import("../javascript/types.js")).shared }
+                );
+                this.variables(
+                    {
+                        name:"string"
+                    },
+                    {
+                        shared,
+                        imported,
+                        reactive
+                    }
+                );
+            }
+        </script>
+    </template>
+    <script src="../javascript/lightview.js?"></script>
+</l-head>
+<l-body>
+<script>
+    Lightview.createComponent("my-input", document.getElementById("my-input"))
+</script>
+<my-input></my-input><br>
+<my-input name="joe"></my-input>
+</l-body>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

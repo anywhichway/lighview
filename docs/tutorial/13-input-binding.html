@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Input Binding</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Input Binding</h2>
+
+Lightview will automatically bind input values to variables.
+
+Note how the string template literals in the REPL have atomic a values that match variable names.
+
+If your variables are not reactive, you will need to add 'input' or 'change' event listeners to the inputs to respond to
+change. See [event listeners](./8-event-listeners.html) portion of the tutorial. In this example we are watching for the
+`change` event. Make changes to the input and tab out. Now, modify the code and watch for an `input` event and make changes
+to the input again.
+
+If your variables are reactive, they will automatically be updated based in `input` events. You can use an `observer`
+to [drive other action](./7-monitoring-with-observers.html).
+
+To simplify processing, `checkbox` inputs are `checked` if their value is set to `true`. Lightview does not allow you to
+assign custom values to checkboxes based on their checked state.
+
+
+    </div>
+    <button class="nav-previous"><a href="./12-imported-components.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./14-automatic-variable-creation.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+    Text: <input type="text" value="${textValue}"><br>
+    Ureactive Text: <input type="text" l-on:change="${onTextChange}" value="${unreactiveTextValue}"><br>
+    Checkbox1: <input type="checkbox" value="${checkbox1}"><br>
+    Checkbox2: <input type="checkbox" value="${checkbox2}"><br>
+</l-body>
+<script id="lightview">
+   currentComponent.mount = function() {
+       this.variables(
+           {
+               textValue:"string",
+               checkbox1:"boolean",
+               checkbox2:"boolean"
+           },
+           {
+               reactive
+           }
+       );
+       this.variables({unreactiveTextValue:"string",onTextChange:"function"});
+
+       onTextChange = (event) => {
+           const el = document.createElement("div");
+           el.innerText = event.target.value;
+           this.shadowRoot.appendChild(el);
+       };
+
+       textValue = "some value";
+       unreactiveTextValue = "some unreactive value";
+       checkbox1 = true;
+       checkbox2 = false;
+
+       observe(() => {
+           const el = document.createElement("div");
+           el.innerText = textValue;
+           this.shadowRoot.appendChild(el);
+       });
+   }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>

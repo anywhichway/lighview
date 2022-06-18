@@ -164,7 +164,7 @@ describe('Lightview - Variables', () => {
     });
 
     test('untyped input - iuntyped should be "test"', async () => {
-        const result = await page.evaluate(async () => {
+        const result = await page.evaluate(() => {
             const el = document.getElementById("test"),
                 result = el.getElementById("iuntyped")
             return result.getAttribute("value");

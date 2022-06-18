@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Components:Org Chart</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../slidein.html" rel="module">
+    <link href="repl.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+## Org Chart
+
+
+
+    </div>
+    <button class="nav-previous"><a href="gantt-repl.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="timeline-repl.html" target="content">Next</a></button>
+</div>
+<div class="repl">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned path="$location" previewheight="400px">
+        <div slot="headhtml"></div>
+        <div slot="bodyhtml"></div>
+        <div slot="script"></div>
+        <template slot="src">
+<l-head>
+    <link href="./orgchart.html" rel="module">
+    <script src="../javascript/lightview.js"></script>
+</l-head>
+<l-body>
+    <l-orgchart id="myChart" style="height:500px;" title="My Org">
+        {
+        options: {
+            selectedStyle:"color:red"
+        },
+        // 4 columns in definition data name,title,manager,tooltip
+        rows: [
+            ["Mike","President","",""],
+            ["Jim","CFO","Mike",""],
+            ['Alice', 'Controller','Jim',""],
+            ['Bob', 'CIO', 'Mike',""],
+            ['Carol', 'Executive Assistant',"Mike",""]
+        ]
+        }
+    </l-orgchart>
+</l-body>
+<script>
+
+</script>
+        </template>
+    </l-repl>
+</div>
+<script>
+   processMarkdown();
+</script>
+</body>
+</html>

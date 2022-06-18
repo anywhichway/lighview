@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Component</title>
+    <script src="../javascript/lightview.js?as=x-body"></script>
+</head>
+<body>
+    <button l-on:click="${onClickPrivate}">Private</button>
+    <button l-on:click="${onClickPublic}">Public</button>
+    ${clicked}
+    <style>
+        button {
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+    <script id="lightview">
+        (currentComponent ||= document.body).mount = function() {
+            this.variables({clicked:"string"},{reactive,set:""});
+            this.variables({onClickPrivate:"function"});
+
+            onClickPrivate = ({target}) => clicked = `clicked ${target.innerText}`;
+
+            this.onClickPublic = ({target}) => clicked = `clicked ${target.innerText}`;
+        }
+    </script>
+</body>
+</html>

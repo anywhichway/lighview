@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lightview:Tutorial:Introduction To Components</title>
+    <link href="../css/tutorial.css" rel="stylesheet">
+    <link href="../components/repl.html" rel="module">
+    <link href="../slidein.html" rel="module">
+    <script src="../javascript/highlightjs.min.js"></script>
+    <script src="../javascript/marked.min.js"></script>
+    <script src="../javascript/utils.js"></script>
+</head>
+<body class="tutorial-body">
+<script src="../javascript/lightview.js"></script>
+<div class="tutorial-instructions">
+    <l-slidein src="./contents.html" class="toc"></l-slidein>
+    <div class="markdown">
+<h2>Introduction To Components</h2>
+
+Until this point, we have not shown you the `head` HTML element or used a `style` block.
+
+All HTML pages using Lightview MUST include include a `lightview.js` file as a regular (not `module`) script in their
+head or close to the top of the `body`.
+
+You MAY treat an entire page as a component by passing `lightview.js` the query string `as=x-body`. The document body
+will get replaced with the custom element `x-body`.
+
+When you use `as=x-body`, the page becomes a component with its HTML rendered in a shadow DOM.
+
+You MAY include a `style` block that will be isolated to the shadow DOM.
+
+And, you MAY include a `script` block with the id "lightview", the variables of which are also isolated to the shadow DOM
+unless you explicitly add them to an object with higher scope, e.g. `window` or `document`. The execution of the script
+is not isolated. The script can walk up the DOM and out of the shadows unless you explicitly render the component in an
+`iframe`.
+
+You may also include other script blocks, which will also be somewhat isolated to the shadow DOM.
+
+*Note*: If you do not include `id="lightview"` for the script block you expect to provide Lightview type behavior, the
+component will not behave properly.
+
+On this page we continue to let you edit the script block. On the next page we will use a `template` tag to define the
+component and create it manually with a regular script. Take the opportunity on this page to inspect the preview area
+using your JavaScript debugger and look at the `iframe` code with the id "preview", note how the body gets replaced with
+an element named `x-body`.
+
+
+</div>
+    <button class="nav-previous"><a href="./8-event-listeners.html" target="content">Previous</a></button>
+    <button class="nav-next"><a href="./10-template-components.html" target="content">Next</a></button>
+</div>
+<div style="float:right;margin-right:10px">
+    <h2></h2>
+    <l-repl id="repl" style="min-height:95vh;min-width:600px;" previewpinned>
+        <div slot="headhtml" readonly></div>
+        <div slot="bodyhtml"></div>
+        <div slot="css"></div>
+        <div slot="script"></div>
+<template slot="src">
+<l-head>
+<script src="../javascript/lightview.js?as=x-body"></script>
+</l-head>
+<l-body>
+<button l-on:click="${onClickPrivate}">Private</button>
+<button l-on:click="${onClickPublic}">Public</button>
+${clicked}
+</l-body>
+<style>
+    button {
+        border: none;
+        border-radius: 5px;
+    }
+</style>
+<script id="lightview">
+    currentComponent.mount = function() {
+        this.variables({clicked:"string"},{reactive,set:""});
+        this.variables({onClickPrivate:"function"});
+
+        onClickPrivate = ({target}) => clicked = `clicked ${target.innerText}`;
+
+        this.onClickPublic = ({target}) => clicked = `clicked ${target.innerText}`;
+    }
+</script>
+</template>
+    </l-repl>
+</div>
+<script>
+    processMarkdown();
+</script>
+</body>
+</html>
