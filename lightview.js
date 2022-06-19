@@ -731,7 +731,9 @@ var {observe} = (() => {
                     processNodes = (nodes,{object,extras}={}) => { //rootName
                         nodes.forEach((node) => {
                             if (node.nodeType === Node.TEXT_NODE && node.template.includes("${")) {
-                                observe(((node,ctx) => () => resolveNodeOrText(node, ctx,true,extras))(node,this));
+                                const observer = observe(((node,ctx) => () => resolveNodeOrText(node, ctx,true,extras))(node,this));
+                                node.observers ||= new Set();
+                                node.observers.add(observer);
                                 if(node.parentElement?.tagName==="TEXTAREA") {
                                     const name = getTemplateVariableName(node.template);
                                     if (name) {
@@ -785,7 +787,7 @@ var {observe} = (() => {
                                                 bindInput(node, name, this, resolveNodeOrText(attr, this,false,extras), object);
                                             }
                                         }
-                                        observe(((node,ctx,template) => () => {
+                                        const observer = observe(((node,ctx,template) => () => {
                                             const value = resolveNodeOrText(template, ctx,false,extras);
                                             if(value!==undefined) {
                                                 if (eltype === "checkbox") {
@@ -819,6 +821,8 @@ var {observe} = (() => {
                                                 }
                                             }
                                         })(node,this,template));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     }
                                 }
                                 for(const attr of node.attributes) {
@@ -828,7 +832,7 @@ var {observe} = (() => {
                                     if (value.includes("${")) attr.template = value;
                                     if (name === "type" && value == "radio" && vname) {
                                         bindInput(node, vname, this, undefined, object);
-                                        observe(((node,ctx) => () => {
+                                        const observer = observe(((node,ctx) => () => {
                                             const varvalue = Function("context", "with(context) { return `${" + vname + "}` }")(ctx.varsProxy);
                                             if (node.attributes.value.value == varvalue) {
                                                 node.setAttribute("checked", "");
@@ -838,10 +842,12 @@ var {observe} = (() => {
                                                 node.checked = false;
                                             }
                                         })(node,this));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     }
                                     const [type, ...params] = name.split(":");
                                     if (type === "") { // name is :something
-                                        observe(((node,attr,ctx)=>() => {
+                                        const observer = observe(((node,attr,ctx)=>() => {
                                             const value = attr.value;
                                             if (params[0]) {
                                                 if (value === "true") node.setAttribute(params[0], "")
@@ -854,10 +860,12 @@ var {observe} = (() => {
                                                     else node.removeAttribute("checked");
                                                 }
                                             }
-                                        })(node,attr,this))
+                                        })(node,attr,this));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     } else if (type === "l-on") {
                                         let listener;
-                                        observe(((node,attr,ctx) => () => {
+                                        const observer = observe(((node,attr,ctx) => () => {
                                             const value = resolveNodeOrText(attr, ctx, true, extras,true);
                                             if (listener) node.removeEventListener(params[0], listener);
                                             listener = null;
@@ -871,12 +879,16 @@ var {observe} = (() => {
                                                 }
                                             }
                                             if (listener) addListener(node, params[0], listener, ctx);
-                                        })(node,attr,this))
+                                        })(node,attr,this));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     } else if (type === "l-if") {
-                                        observe(((node,attr,ctx) => () => {
+                                        const observer = observe(((node,attr,ctx) => () => {
                                             const value = resolveNodeOrText(attr, ctx, true, extras);
                                             node.style.setProperty("display", value == true || value === "true" ? "revert" : "none");
-                                        })(node,attr,this))
+                                        })(node,attr,this));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     } else if (type === "l-for") {
                                         //node.template ||= node.innerHTML;
                                         //node.clone ||= node.cloneNode(true);
@@ -893,37 +905,46 @@ var {observe} = (() => {
                                                     coerced = coerce(value, what === "each" ? Array : "object"),
                                                     target = what === "each" ? coerced : Object[what](value),
                                                     children = target.reduce((children, item, i, target) => {
-                                                        const node = clone.cloneNode(true),
+                                                        const child = clone.cloneNode(true),
                                                             extras = {
                                                                 [vname]: item,
                                                                 [index]: i,
                                                                 [array]: target
                                                             },
-                                                            nodes = getNodes(node, href);
+                                                            nodes = getNodes(child, href);
                                                         processNodes(nodes,{extras});
-                                                        children.push(...node.childNodes);
+                                                        children.push(...child.childNodes);
                                                         return children;
                                                     }, []);
-                                                requestAnimationFrame(() => {
-                                                    if(children.length===0) {
-                                                        node.innerHTML = ""
-                                                    } else {
-                                                        children.forEach((child,i) => {
-                                                            if (after) node.parentElement.insertBefore(child, node);
-                                                            else if(node?.childNodes[i]) {
-                                                                const old = node.childNodes[i];
-                                                                node.replaceChild(child,old);
+                                                //requestAnimationFrame(() => {
+                                                if(children.length===0) {
+                                                    node.innerHTML = ""
+                                                } else {
+                                                    children.forEach((child,i) => {
+                                                        if (after) node.parentElement.insertBefore(child, node);
+                                                        else if(node?.childNodes[i]) {
+                                                            const old = node.childNodes[i];
+                                                            if(old.observers) {
+                                                                old.observers.forEach((observer) => observer.cancel())
+                                                                old.observers.clear();
+                                                                old.observers = null;
                                                             }
-                                                            else node.appendChild(child);
-                                                        })
-                                                        while(node.childNodes.length>children.length) node.lastChild.remove();
-                                                    }
-                                                });
-                                            })(node,attr,this,extras))
+                                                            node.replaceChild(child,old);
+                                                        }
+                                                        else node.appendChild(child);
+                                                    })
+                                                    while(node.childNodes.length>children.length) node.lastChild.remove();
+                                                }
+                                                // });
+                                            })(node,attr,this,extras));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     } else if (attr.template) {
-                                        observe(((node,attr,ctx,extras) => () => {
+                                        const observer = observe(((node,attr,ctx,extras) => () => {
                                             resolveNodeOrText(attr, ctx, false, extras);
-                                        })(node,attr,this,extras))
+                                        })(node,attr,this,extras));
+                                        node.observers ||= new Set();
+                                        node.observers.add(observer);
                                     }
                                 }
                             }
@@ -1250,7 +1271,8 @@ var {observe} = (() => {
         // loads for framed content
         addListener(document, "DOMContentLoaded", (event) => loader(callback));
     }
-    Lightview.whenFramed = whenFramed;
+    Object.defineProperty(Lightview,"whenFramed",{value:whenFramed});
+    //Lightview.whenFramed = whenFramed;
     Lightview.loader = loader;
 //debugger;
     if (window.location === window.parent.location || !(window.parent instanceof Window) || window.parent !== window) {

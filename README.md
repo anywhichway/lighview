@@ -8,35 +8,34 @@ See the docs and examples at [https://lightview.dev](https://lightview.dev).
 
 Meanwhile, here is what you get:
 
-1) Single file and <a href="#local-templates" target=_self>template</a> components.
-
-1) [Sandboxed remote components](https://lightview.dev/#sandboxed-components) and micro front ends</a>.
-
-1) [Unit testable](https://lightview.dev/#unit-testing) components and a [debug mode](https://lightview.dev/#debugging) for using standard JavaScript debuggers</a>.
-
 1) No pre-deployment transpilation/compilation required.
 
-1) Svelte like variable usage, i.e. write your state modifying code like normal code.
-
-1) Extended variable type declarations including `min`, `max` and `step` on `number` or limits on `string` and `array` lengths.
-
-1) [TypeScript like](https://lightview.dev/#variables) runtime type checking of variables in components.
-
-1) Automatic server retrieval and update of variables declared as `remote`.
-
-1) Automatic import, export, cross-component sync, or reactive response to attributes/props/variables. See [superVariable](https://lightview.dev/#super-variable).
-
-1) [Automatic form variable creation and binding](https://lightview.dev/#auto-binding-forms).
-
-1) [Attribute directives](https://lightview.dev/#attribute-directives) like `l-if`, and a single powerful `l-for` that handles array and object keys, values, and entries.
+1) No virtual DOM. The Lightview dependency tracker targets just those nodes that need updates.
 
 1) Reactive string template literals for content and attribute value replacement.
 
-1) No virtual DOM. The Lightview dependency tracker laser targets just those nodes that need updates.
+1) Automatic import, export and cross-component syn for attributes/variables.
 
-1) SPA, and MPA friendly ... somewhat SEO friendly and short steps away from fully SEO friendly.
+1) Svelte like variable usage, i.e. write your state modifying code like normal code.
 
-1) A [component library](https://lightview.dev/components) including charts and gauges that work in Markdown files.
+1) TypeScript like runtime type checking of variables in components.
 
-1) Lots of live [editable examples](https://lightview.dev/#examples).
+1) Extended variable type declarations including `min`, `max` and `step` on `number` or limits on `string` and `array` lengths.
+
+1) Automatic server retrieval and update of variables declared as remote5.
+
+1) Single file and template components.
+
+1) Automatic input field variable creation and bindinge.
+
+1) Attribute directives like l-if, and a powerful l-for that handles array and object keys, values, and entries.
+
+1) Sandboxed remote components and micro front ends.
+
+1) Unit testable components and a debug mode for using standard JavaScript debuggers.
+
+1) A component library including charts and gauges that work in Markdown files.
+
+
+
 
